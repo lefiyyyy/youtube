@@ -14,11 +14,15 @@ export function h(html) {
   return t.content.firstElementChild;
 }
 // Delegated click handling: elements with data-a="name" call handlers[name](el, event)
+// Re-binding the same root replaces its handler map (screens like the phone re-render in place).
 export function bind(root, handlers) {
+  const first = !root._bindH;
+  root._bindH = handlers;
+  if (!first) return root;
   root.addEventListener('click', (e) => {
     const el = e.target.closest('[data-a]');
     if (!el || !root.contains(el)) return;
-    const fn = handlers[el.dataset.a];
+    const fn = root._bindH[el.dataset.a];
     if (fn) { e.stopPropagation(); if (!el.dataset.silent) G.audio?.sfx('click'); fn(el, e); }
   });
   return root;
@@ -247,7 +251,8 @@ export class Labels {
   bubble(obj, html, cls = '') {
     const w = G.world;
     const p = w.toScreen(w.objTop(obj, 0.15));
-    const e = h(`<div class="wbubble glass ${cls}" style="left:${p.x}px;top:${p.y}px">${html}</div>`);
+    const x = clamp(p.x, 110, innerWidth - 110), y = clamp(p.y, 70, innerHeight - 40);
+    const e = h(`<div class="wbubble glass ${cls}" style="left:${x}px;top:${y}px">${html}</div>`);
     this.el.appendChild(e);
     setTimeout(() => e.remove(), 2500);
   }

@@ -298,7 +298,7 @@ export const Stream = {
         setTimeout(() => { clearInterval(iv); box.remove(); sys(`${ic('poll')} Poll: "${esc(v1 >= v2 ? p[1] : p[2])}" wins!`); }, 5500);
         S2.eng += 1.0; addHype(14);
       } else if (id === 'give') {
-        const cost = Math.max(50, Math.round(s.money * 0.04 / 10) * 10);
+        const cost = Math.max(50, Math.round(Math.min(s.money * 0.04, 1500 + s.level * 350) / 10) * 10);
         if (!G.game.spend(cost)) { cds[id] = 0; return; }
         alertPop(`${ic('gift')} GIVEAWAY! ${fmtMoney(cost)} prize`, 'raid', 3);
         S2.raid += S2.viewers * 0.6 + 20; S2.followers += S2.viewers * 0.25 + 8; addHype(35);

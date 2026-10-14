@@ -60,6 +60,8 @@ export function makeThumb(style, game, title, W = 480, H = 270) {
     ctx.font = `900 ${H * 0.15}px Impact, Bricolage, sans-serif`; ctx.fillStyle = '#fff'; ctx.strokeStyle = '#000'; ctx.lineWidth = 8; ctx.lineJoin = 'round'; ctx.textAlign = 'center';
     ctx.strokeText('WHEN THE', W / 2, H * 0.17); ctx.fillText('WHEN THE', W / 2, H * 0.17);
     const t2 = (game.name + ' HITS').toUpperCase();
+    let fs = H * 0.15;
+    while (fs > H * 0.07) { ctx.font = `900 ${fs}px Impact, Bricolage, sans-serif`; if (ctx.measureText(t2).width < W * 0.92) break; fs -= 2; }
     ctx.strokeText(t2, W / 2, H * 0.94); ctx.fillText(t2, W / 2, H * 0.94);
   } else { // neon pro
     ctx.fillStyle = 'rgba(10,0,30,0.45)'; ctx.fillRect(0, 0, W, H);

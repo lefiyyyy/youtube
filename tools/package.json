@@ -1,0 +1,7 @@
+{
+  "name": "streamer-rise-tools",
+  "private": true,
+  "type": "module",
+  "description": "Dev-only QA tooling (Playwright playthroughs, screenshots, balance simulator). Not needed to play.",
+  "devDependencies": { "playwright": "1.56.1" }
+}

@@ -86,7 +86,7 @@ export const LAYOUTS = [
     shelves: [{ wall: 'left', z: -2.3, y: 1.75, w: 1.2 }, { wall: 'left', z: 2.3, y: 1.5, w: 1.0 }],
     slots: {
       wall: [{ wall: 'left', z: 0.0, y: 2.6 }, { wall: 'left', z: -2.3, y: 2.55 }, { wall: 'left', z: 1.3, y: 2.7 }, { wall: 'left', z: 2.3, y: 2.3 }, { wall: 'back', x: 4.2, y: 2.9 }, { wall: 'left', z: -1.6, y: 2.95 }, { wall: 'left', z: 3.6, y: 2.6 }, { wall: 'back', x: 5.4, y: 2.85 }, { wall: 'left', z: 0.7, y: 1.6 }, { wall: 'left', z: -0.6, y: 3.1 }],
-      floor: [{ x: 5.5, z: -1.4, ry: -PI / 2 }, { x: 5.5, z: 0.6, ry: -PI / 2 }, { x: -2.0, z: -0.7, ry: 0.5 }, { x: 5.45, z: 2.4, ry: -PI / 2 }, { x: -1.0, z: -3.45, ry: 0, small: true }, { x: -2.6, z: -3.5, ry: 0, small: true }, { x: -1.6, z: 3.4, ry: 0.4, small: true }, { x: 2.4, z: 3.4, ry: 0, small: true }, { x: 5.3, z: 3.4, ry: -0.6, small: true }],
+      floor: [{ x: -1.0, z: -3.45, ry: 0 }, { x: -2.6, z: -3.5, ry: 0 }, { x: -2.0, z: -0.7, ry: 0.5 }, { x: 5.5, z: -1.2, ry: -PI / 2 }, { x: 5.5, z: 0.7, ry: -PI / 2, small: true }, { x: -1.6, z: 3.4, ry: 0.4, small: true }, { x: 2.4, z: 3.4, ry: 0, small: true }, { x: 5.3, z: 3.4, ry: -0.6, small: true }, { x: 3.6, z: 1.6, ry: -0.8, small: true }],
       rug: [{ x: 1.4, z: 1.0 }, { x: -4.1, z: 1.3 }],
       ceiling: [{ x: 1.2, z: 0.8 }],
       plaque: [{ wall: 'left', z: -0.3, y: 2.0 }, { wall: 'left', z: 0.15, y: 2.0 }, { wall: 'left', z: -0.75, y: 2.45 }, { wall: 'left', z: 0.6, y: 2.0 }, { wall: 'left', z: 1.05, y: 2.0 }],

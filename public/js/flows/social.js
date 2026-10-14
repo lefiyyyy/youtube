@@ -36,7 +36,7 @@ export const Social = {
       const s = G.s, W = G.world;
       G.ui.hud.show(false);
       W.char.showProp('phone');
-      if (W.charMode === 'sit') W.char.play('sitPhone'); else W.char.play('phone');
+      if (W.charMode === 'sit') W.char.play('sitPhone'); else { W.char.play('phone'); if (W.charMode === 'idle') W.turnTo(0.5); }
       W.shot('char', { shift: innerWidth > 900 ? -0.17 : -0.2, dist: 3.6, yawAdd: -0.1 });
       G.audio.muffle(true);
       const wrap = h(`<div class="phone-wrap" style="justify-content:${innerWidth > 900 ? 'end' : 'end'};padding-right:${innerWidth > 900 ? '12vw' : '6vw'}"><div class="phone"><div class="notch"></div><div class="screen"></div></div></div>`);
@@ -85,7 +85,7 @@ export const Social = {
     const a = APPS.find((x) => x.id === id);
     if (a?.feat && !hasFeature(s, a.feat)) { G.audio.sfx('error'); toast(`Unlocks at level ${FEATURES.find((f) => f.id === a.feat).level}`, { icon: 'lock', color: 'var(--violet)' }); return; }
     const external = { studio: () => G.meta.analytics(), events: () => G.meta.events(), collabs: () => G.meta.collabs(), team: () => G.meta.team(), quests: () => G.meta.quests(), style: () => G.life.wardrobe() };
-    if (external[id]) { this.after = external[id]; this.ctx.close(); return; }
+    if (external[id]) { this.after = external[id]; this.ctx?.close(); return; }
     this[id]();
   },
   head(title, icon, extra = '') {
