@@ -3,6 +3,17 @@ import { G } from '../game/ctx.js';
 import { bus } from '../core/bus.js';
 import { $, $$, h, bind, ic, esc, modal, toast, fly, countUp, floatText, flash } from '../ui/ui.js';
 import { GAMES, GENRES, gameById } from '../data/games.js';
+
+// Share of past views your audience gave to this game's best-matching genre
+export function affinityFor(game) {
+  const s = G.s;
+  if (s.videos.length < 3) return null;
+  const gv = {}; let tot = 0;
+  for (const v of s.videos) { const g = gameById(v.game); if (!g) continue; tot += v.views; for (const t of g.tags) gv[t] = (gv[t] || 0) + v.views; }
+  let best = null;
+  for (const t of game.tags) { const k = (gv[t] || 0) / Math.max(1, tot); if (!best || k > best.k) best = { k, name: GENRES[t].name }; }
+  return best;
+}
 import { CONTENT, THUMBS, makeTitles, contentById } from '../data/content.js';
 import { CREATORS } from '../data/sponsors.js';
 import { gameCover, drawGame } from '../world/screens.js';
@@ -71,7 +82,7 @@ export const Create = {
         <div class="thumb"><img src="${gameCover(g)}" alt="">${trendRibbon(g)}</div>
         <div class="ttl">${esc(g.name)}</div>
         <div class="meta">${genreTags(g)}</div>
-        <div class="foot"><span class="row tiny muted">${ic('star')}Hype ${Math.round(g.appeal * 50)}</span>${fat > 0.35 ? `<span class="chip bad" style="padding:2px 8px">${ic('zzz')}Played out</span>` : ''}</div></button>`;
+        <div class="foot"><span class="row tiny muted">${ic('star')}Hype ${Math.round(g.appeal * 50)}</span>${fat > 0.35 ? `<span class="chip bad" style="padding:2px 8px">${ic('zzz')}Played out</span>` : (affinityFor(g)?.k > 0.4 ? `<span class="chip good" style="padding:2px 8px">${ic('heart')}Fans love</span>` : '')}</div></button>`;
     }).join('');
     const el = overlay(`<div class="picker glass">
       <div class="pick-head">${steps(...step)}<h2 class="display grow">${title}</h2><button class="btn ghost small" data-a="shop">${ic('cart')}More games</button><button class="xbtn" data-a="x">${ic('close')}</button></div>
@@ -181,7 +192,7 @@ export const Create = {
     const perf = clamp(rec.perf * 0.62 + ed.perf * 0.38, 0, 1);
     const out = videoOutcome(s, {
       game, content, perf, thumb: pub.thumb, title: pub.title, hour: G.game.hour, trend: G.game.trend(), event: ev,
-      fatigue: s.gameUse[game.id] || 0, trendBoost: tb, partnerMult: hasFeature(s, 'partner') ? 1.4 : 1, collab: partner?.mult, focus,
+      fatigue: s.gameUse[game.id] || 0, trendBoost: tb, partnerMult: hasFeature(s, 'partner') ? 1.4 : 1, collab: partner?.mult, focus, affinity: affinityFor(game),
     });
     if (partner) out.insights.unshift(['info', 'handshake', `Collab with ${partner.name}`]);
     if (sponsor) out.views = Math.round(out.views * 0.95);

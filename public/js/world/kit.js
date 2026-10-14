@@ -4,7 +4,17 @@ import { RoundedBoxGeometry } from '../../vendor/three/addons/geometries/Rounded
 
 const geoCache = new Map();
 const matCache = new Map();
-const g = (key, make) => { let v = geoCache.get(key); if (!v) { v = make(); geoCache.set(key, v); } return v; };
+const cachedGeos = new Set(), cachedMats = new Set();
+const g = (key, make) => { let v = geoCache.get(key); if (!v) { v = make(); geoCache.set(key, v); cachedGeos.add(v); } return v; };
+// Dispose GPU resources of a removed subtree, keeping shared cached geometry/materials alive.
+export function disposeObj(root) {
+  root.traverse((o) => {
+    if (!o.isMesh) return;
+    if (o.geometry && !cachedGeos.has(o.geometry)) o.geometry.dispose();
+    const ms = Array.isArray(o.material) ? o.material : [o.material];
+    for (const m of ms) if (m && !cachedMats.has(m)) m.dispose();
+  });
+}
 
 export function mat(color, o = {}) {
   const key = JSON.stringify([color, o.rough, o.metal, o.emissive, o.ei, o.transparent, o.opacity, o.flat, o.side, o.env, o.map ? o.map.uuid : 0]);
@@ -24,6 +34,7 @@ export function mat(color, o = {}) {
     map: o.map || null,
   });
   matCache.set(key, m);
+  cachedMats.add(m);
   return m;
 }
 // Uncached material for things that animate their own properties.

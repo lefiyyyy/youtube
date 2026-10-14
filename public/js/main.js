@@ -47,7 +47,10 @@ async function boot() {
   const audio = new AudioEngine();
   audio.vol = { music: s.settings.music, sfx: s.settings.sfx };
   G.audio = audio;
-  const unlock = () => { audio.unlock(); audio.setVolumes(s.settings.music, s.settings.sfx); };
+  let platformMuted = false;
+  const applyVol = () => audio.setVolumes(platformMuted ? 0 : s.settings.music, platformMuted ? 0 : s.settings.sfx);
+  const unlock = () => { audio.unlock(); applyVol(); };
+  sdkP.then(() => SDK.onMute((m) => { platformMuted = m; applyVol(); }));
   addEventListener('pointerdown', unlock, { capture: true });
   addEventListener('keydown', unlock, { capture: true });
   // systems
@@ -132,6 +135,13 @@ async function boot() {
   }
   addEventListener('visibilitychange', () => { if (document.hidden) { save(true); SDK.gameplayStop(); audio.ctx?.suspend(); } else { SDK.gameplayStart(); audio.ctx?.resume(); } });
   addEventListener('pagehide', () => save(true));
+  addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    const wrap = [...document.querySelectorAll('.modal-wrap')].pop();
+    const x = wrap?.querySelector('[data-x]');
+    if (x) { x.click(); return; }
+    if (Social.ctx) Social.ctx.close();
+  });
   window.__G = G;
 }
 boot().catch((e) => { console.error(e); });

@@ -22,4 +22,13 @@ export const SDK = {
   gameplayStart() { try { this.sdk?.game.gameplayStart(); } catch {} },
   gameplayStop() { try { this.sdk?.game.gameplayStop(); } catch {} },
   happy() { try { this.sdk?.game.happytime(); } catch {} },
+  // Platform-level mute (CrazyGames settings). cb(muted:boolean)
+  onMute(cb) {
+    try {
+      const g = this.sdk?.game;
+      if (!g) return;
+      cb(!!g.settings?.muteAudio);
+      g.addSettingsChangeListener?.((st) => cb(!!st.muteAudio));
+    } catch {}
+  },
 };

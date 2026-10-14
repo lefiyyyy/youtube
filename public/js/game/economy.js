@@ -83,6 +83,7 @@ export function videoOutcome(s, p) {
   let M = p.content.views * gm.m * Q * perf * hm.m * nm.m * ctr * home * (ev.viewMult || 1) * collab;
   if (p.content.trendy && gm.tags.includes('trending')) M *= p.content.trendy;
   if (p.focus) M *= 1.15;
+  if (p.affinity) M *= 1 + 0.25 * p.affinity.k;
   let views = reach * Math.pow(M, T.MP) * (0.88 + Math.random() * 0.3) * boost;
   let viral = false;
   const vChance = 0.035 + (p.perf > 0.85 ? 0.05 : 0) + (gm.tags.includes('trending') ? 0.05 : 0) + (p.title.id === 'trend' ? 0.02 : 0) + (p.thumb.id === 'neon' ? 0.02 : 0);
@@ -100,6 +101,7 @@ export function videoOutcome(s, p) {
   // insights (short, visual)
   const ins = [];
   if (boost > 1) ins.push(['good', 'rocket', 'New creator boost']);
+  if (p.affinity && p.affinity.k > 0.4) ins.push(['good', 'heart', `Your audience loves ${p.affinity.name}`]);
   if (viral) ins.push(['hot', 'flame', 'Went VIRAL']);
   if (gm.tags.includes('trending')) ins.push(['hot', 'trend', 'Trending topic']);
   if (gm.tags.includes('rising')) ins.push(['info', 'trend', 'Rising genre']);

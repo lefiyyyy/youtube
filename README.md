@@ -96,8 +96,15 @@ tools/                    dev tooling: Playwright playthroughs, screenshots, bal
 
 * `node tools/play.mjs [w] [h] [mobile]` — scripted tutorial playthrough with screenshots and console-error capture.
 * `node tools/play2.mjs` — mid-game flows (streams, sleep, decor, themes, homes, level-ups, deals, wardrobe).
+* `node tools/play3.mjs` — returning player: offline views, daily reward streak, next-day event + reminder (`?dayOffset`).
+* `node tools/look.mjs 13 21` — high-quality room screenshots at the given in-game hours.
 * `node tools/sim.mjs [runs] ['{"RV":2.0}']` — economy pacing simulator (prints level / fans / money over real minutes).
 * `node tools/check.mjs` — syntax-checks every ES module.
+
+Tools expect the server on `http://localhost:8080` and Playwright's Chromium (`npm i playwright` in `tools/` if needed).
+
+Target pacing from the simulator: first 100 subscribers in ~5 minutes, 1K (Bronze plaque) in ~25 minutes,
+10K in ~70 minutes, 100K in ~3 hours and 1M after roughly 6–7 hours of play.
 
 ## Credits & licenses
 

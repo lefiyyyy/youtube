@@ -602,12 +602,12 @@ export function buildMirror(th) {
   const g = new THREE.Group();
   const fr = mat(th.metal === '#c9a45c' ? '#c9a45c' : th.wood, { rough: 0.4, metal: th.metal === '#c9a45c' ? 0.8 : 0 });
   at(rbox(0.6, 1.6, 0.05, 0.25, fr), g, 0, 0.85, 0);
-  const streak = canvasTex(128, 256, (ctx, w, h) => {
+  const streak = cached('mirror', () => canvasTex(128, 256, (ctx, w, h) => {
     const g = ctx.createLinearGradient(0, 0, w, h); g.addColorStop(0, '#5d6f8c'); g.addColorStop(0.5, '#9fb2cf'); g.addColorStop(1, '#4a5873');
     ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
     ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.beginPath(); ctx.moveTo(20, 0); ctx.lineTo(60, 0); ctx.lineTo(0, 120); ctx.lineTo(0, 40); ctx.fill();
     ctx.fillStyle = 'rgba(255,255,255,0.18)'; ctx.beginPath(); ctx.moveTo(80, 0); ctx.lineTo(95, 0); ctx.lineTo(10, 170); ctx.lineTo(0, 170); ctx.fill();
-  });
+  }));
   const glass = new THREE.MeshStandardMaterial({ color: '#ffffff', map: streak, roughness: 0.08, metalness: 0.6, envMapIntensity: 1.2, emissive: '#3a4660', emissiveIntensity: 0.25 });
   at(rbox(0.52, 1.5, 0.01, 0.22, glass), g, 0, 0.85, 0.022);
   at(rbox(0.5, 0.04, 0.3, 0.02, fr), g, 0, 0.02, 0.08);
@@ -706,8 +706,10 @@ export function buildPlaque(color, label) {
 }
 
 // Rounded decor helpers -------------------------------------------------------
+const texCache = new Map();
+const cached = (k, f) => { if (!texCache.has(k)) texCache.set(k, f()); return texCache.get(k); };
 function posterTex(kind, accent) {
-  return canvasTex(256, 360, (ctx, w, h) => {
+  return cached('poster' + kind + accent, () => canvasTex(256, 360, (ctx, w, h) => {
     if (kind === 'pixel') {
       const gr = ctx.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, '#2b1b5a'); gr.addColorStop(1, '#ff4f8b');
       ctx.fillStyle = gr; ctx.fillRect(0, 0, w, h);
@@ -729,10 +731,10 @@ function posterTex(kind, accent) {
       for (let i = 0; i < 9; i++) { ctx.fillStyle = cs[i % cs.length]; ctx.globalAlpha = 0.85; ctx.beginPath(); ctx.arc(Math.random() * w, Math.random() * h, 20 + Math.random() * 70, 0, Math.PI * 2); ctx.fill(); }
       ctx.globalAlpha = 1;
     }
-  });
+  }));
 }
 function neonTex(text, color) {
-  return canvasTex(512, 160, (ctx, w, h) => {
+  return cached('neon' + text + color, () => canvasTex(512, 160, (ctx, w, h) => {
     ctx.clearRect(0, 0, w, h);
     ctx.font = '700 86px "Caveat", "Bricolage", cursive';
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -740,7 +742,7 @@ function neonTex(text, color) {
     ctx.fillText(text, w / 2, h / 2 + 4);
     ctx.shadowBlur = 0; ctx.fillStyle = '#ffffff'; ctx.globalAlpha = 0.85;
     ctx.fillText(text, w / 2, h / 2 + 4);
-  });
+  }));
 }
 
 // Decor builder. Wall items face +z. Returns group.

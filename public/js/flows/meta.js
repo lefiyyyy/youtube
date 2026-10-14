@@ -203,7 +203,7 @@ export const Meta = {
     const all = s.quests.list.every((q) => q.claimed);
     const body = h(`<div><div class="row tiny muted" style="font-weight:700;margin-bottom:10px">${ic('clock')} New quests in ${fmtDuration(msToNextDay())}</div>
       ${s.quests.list.map((q, i) => { const def = QUEST_POOL.find((x) => x.id === q.id); const done = q.p >= q.t; return `<div class="quest ${done ? 'done' : ''}"><div class="qi">${ic(done ? 'check' : def.icon)}</div><div class="grow"><div class="qt">${def.text(q.t)}</div><div class="bar"><i style="width:${(q.p / q.t) * 100}%"></i></div><div class="qr">${rewardChips(this.questReward(q))}</div></div>${q.claimed ? `<span class="chip good">${ic('check')}Claimed</span>` : done ? `<button class="btn go small shine" data-a="claim" data-i="${i}">Claim</button>` : `<span class="chip">${fmt(q.p)}/${fmt(q.t)}</span>`}</div>`; }).join('')}
-      <div class="quest" style="background:linear-gradient(135deg,rgba(255,194,75,.14),rgba(255,79,139,.12));border-color:rgba(255,194,75,.35)"><div class="qi" style="background:linear-gradient(135deg,#ffd577,#ff7a2f);color:#2b1700">${ic('gift')}</div><div class="grow"><div class="qt">Complete all quests</div><div class="qr">${rewardChips({ sparks: QUEST_BONUS.sparks, tickets: QUEST_BONUS.tickets * 5 })}</div></div>${s.quests.bonus ? `<span class="chip good">${ic('check')}Claimed</span>` : all ? `<button class="btn amber small shine" data-a="bonus">Open chest</button>` : `<span class="chip">${ic('lock')}</span>`}</div></div>`);
+      <div class="quest" style="background:rgba(255,150,110,.13);border-color:rgba(255,194,75,.35)"><div class="qi" style="background:linear-gradient(135deg,#ffd577,#ff7a2f);color:#2b1700">${ic('gift')}</div><div class="grow"><div class="qt">Complete all quests</div><div class="qr">${rewardChips({ sparks: QUEST_BONUS.sparks, tickets: QUEST_BONUS.tickets * 5 })}</div></div>${s.quests.bonus ? `<span class="chip good">${ic('check')}Claimed</span>` : all ? `<button class="btn amber small shine" data-a="bonus">Open chest</button>` : `<span class="chip">${ic('lock')}</span>`}</div></div>`);
     const m = modal({ title: 'Daily Quests', sub: 'Quick goals, big rewards', icon: 'target', iconBg: 'linear-gradient(135deg,#6fe7ff,#25c6f2)', body, size: 'md' });
     bind(body, {
       claim: (b) => {
@@ -299,8 +299,11 @@ export const Meta = {
     if (!hasFeature(s, 'deals')) return;
     const today = s.clock.day;
     if (!force && D.lastRefresh === today && D.offers.length) return;
+    const firstTime = !D.lastRefresh;
     D.lastRefresh = today;
     const ev = G.game.currentEvent();
+    const before = D.offers.length;
+    if (!firstTime && before < 3 && !force) setTimeout(() => toast('New brand deal offers', { icon: 'handshake', color: '#4fd37b', sub: 'Check Deals on your phone' }), 400);
     while (D.offers.length < 3) {
       const b = pick(BRANDS);
       const types = DEAL_TYPES.filter((t) => !t.level || s.level >= t.level);

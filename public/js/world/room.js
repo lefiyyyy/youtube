@@ -1,6 +1,6 @@
 // Room / home builder: walls, windows, furniture, gear rig, decor slots, stations and nav.
 import * as THREE from 'three';
-import { mat, umat, glow, rbox, box, cyl, sph, plane, circle, at, group, shadows, canvasTex } from './kit.js';
+import { mat, umat, glow, rbox, box, cyl, sph, plane, circle, at, group, shadows, canvasTex, disposeObj } from './kit.js';
 import { woodFloor, marble, tiles, brick, paint } from './textures.js';
 import * as F from './furniture.js';
 import { NavGrid } from './nav.js';
@@ -114,7 +114,7 @@ export class Room {
   build(s) {
     this.s = s;
     // clear
-    while (this.root.children.length) this.root.remove(this.root.children[0]);
+    while (this.root.children.length) { const c = this.root.children[0]; this.root.remove(c); disposeObj(c); }
     this.screens.clearMeshes();
     this.interact = [];
     this.anims = [];
@@ -202,7 +202,7 @@ export class Room {
     }
     // light shafts through back windows
     this.shafts = [];
-    const shaftTex = canvasTex(64, 256, (ctx, w, h) => { const g = ctx.createLinearGradient(0, 0, 0, h); g.addColorStop(0, 'rgba(255,255,255,0.9)'); g.addColorStop(1, 'rgba(255,255,255,0)'); ctx.fillStyle = g; ctx.fillRect(0, 0, w, h); const g2 = ctx.createLinearGradient(0, 0, w, 0); g2.addColorStop(0, 'rgba(0,0,0,1)'); g2.addColorStop(0.2, 'rgba(0,0,0,0)'); g2.addColorStop(0.8, 'rgba(0,0,0,0)'); g2.addColorStop(1, 'rgba(0,0,0,1)'); ctx.globalCompositeOperation = 'destination-out'; ctx.fillStyle = g2; ctx.fillRect(0, 0, w, h); });
+    const shaftTex = Room.shaftTex || (Room.shaftTex = canvasTex(64, 256, (ctx, w, h) => { const g = ctx.createLinearGradient(0, 0, 0, h); g.addColorStop(0, 'rgba(255,255,255,0.9)'); g.addColorStop(1, 'rgba(255,255,255,0)'); ctx.fillStyle = g; ctx.fillRect(0, 0, w, h); const g2 = ctx.createLinearGradient(0, 0, w, 0); g2.addColorStop(0, 'rgba(0,0,0,1)'); g2.addColorStop(0.2, 'rgba(0,0,0,0)'); g2.addColorStop(0.8, 'rgba(0,0,0,0)'); g2.addColorStop(1, 'rgba(0,0,0,1)'); ctx.globalCompositeOperation = 'destination-out'; ctx.fillStyle = g2; ctx.fillRect(0, 0, w, h); }));
     for (const wdef of L.windows.filter((w) => w.wall === 'back')) {
       const len = Math.min(D * 0.7, 3.2);
       const m = new THREE.MeshBasicMaterial({ map: shaftTex, transparent: true, opacity: 0.12, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, color: '#ffe9c7', fog: false });
@@ -273,6 +273,7 @@ export class Room {
 
   addInteract(id, obj, label, icon) {
     obj.userData.interact = id;
+    this.interact = this.interact.filter((i) => i.id !== id);
     this.interact.push({ id, obj, label, icon });
   }
 
@@ -360,7 +361,7 @@ export class Room {
   buildDesk(popCat) {
     const s = this.s, th = this.th, L = this.L;
     const old = this.deskRoot;
-    while (old.children.length) old.remove(old.children[0]);
+    while (old.children.length) { const c = old.children[0]; old.remove(c); disposeObj(c); }
     this.screens.surfaces.forEach((sf, k) => { if (k !== 'tv' && k !== 'arcade') sf.meshes = []; });
     const g = s.gear;
     const desk = F.buildDesk(g.desk, th);
@@ -467,7 +468,10 @@ export class Room {
   buildDecor(newId) {
     const s = this.s, th = this.th, L = this.L;
     const root = this.decorRoot;
-    while (root.children.length) root.remove(root.children[0]);
+    while (root.children.length) { const c = root.children[0]; root.remove(c); disposeObj(c); }
+    for (const o of this.decorExtra || []) { if (o.parent) o.parent.remove(o); disposeObj(o); }
+    this.decorExtra = [];
+    this.interact = this.interact.filter((i) => i.id !== 'cat');
     this.decorObst = [];
     this.cat = null;
     this.decorAnims = [];
@@ -516,6 +520,7 @@ export class Room {
           const def = this.shelfSlots[idx];
           if (!def) continue;
           at(obj, def.anchor, def.x, def.y, def.z);
+          this.decorExtra.push(obj);
         } else if (slot === 'rug') {
           const def = L.slots.rug[idx];
           at(obj, root, def.x, 0, def.z);
@@ -524,7 +529,8 @@ export class Room {
           at(obj, root, def.x, this.H, def.z);
         } else if (slot === 'kitchen') {
           const def = L.slots.kitchen[idx];
-          at(obj, this.counter, def.along * (this.L.counter.len / 2) / 0.5 * 0 + (-this.L.counter.len / 2 + 0.2), 0.9, -0.05);
+          at(obj, this.counter, -this.L.counter.len / 2 + 0.2, 0.9, -0.05);
+          this.decorExtra.push(obj);
         }
         if (obj.userData.screen) this.screens.register(obj.userData.screen);
         if (obj.userData.rgb || obj.userData.lava || obj.userData.fish || obj.userData.spinBall || obj.userData.spinY) this.decorAnims.push(obj);
@@ -537,7 +543,7 @@ export class Room {
 
   buildPlaques(newId) {
     const L = this.L;
-    (this.plaqueAnchors || []).forEach((a) => a.parent && a.parent.remove(a));
+    (this.plaqueAnchors || []).forEach((a) => { if (a.parent) a.parent.remove(a); disposeObj(a); });
     this.plaqueAnchors = [];
     const got = MILESTONES.filter((m) => m.plaque && this.s.milestones.includes(m.id));
     got.forEach((m, i) => {

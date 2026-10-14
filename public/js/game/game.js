@@ -121,6 +121,8 @@ export class Game {
     s.history.push({ d: s.clock.day, fans: totalFans(s), vid: s.fans.vid, money: Math.round(s.money) });
     if (s.history.length > 30) s.history.shift();
     this.queue(() => toast(`New trend: <b>${tr.hot[0].toUpperCase() + tr.hot.slice(1)}</b> games are hot today`, { icon: 'flame', color: '#ff7a2f' }));
+    G.meta?.refreshDeals();
+    G.meta?.genInbox();
   }
   tailViews(hours) {
     const s = this.s;

@@ -605,8 +605,14 @@ export class World {
     return { x: (p.x * 0.5 + 0.5) * this.W, y: (-p.y * 0.5 + 0.5) * this.H, visible: p.z < 1 && p.z > -1 };
   }
   objTop(obj, add = 0.25) {
-    const box = new THREE.Box3().setFromObject(obj);
-    return V3((box.min.x + box.max.x) / 2, box.max.y + add, (box.min.z + box.max.z) / 2);
+    // cached for a short time: Box3 over big groups is costly to recompute every frame
+    const c = obj.userData._top, now = this.clock;
+    if (!c || now - c.t > 0.3) {
+      const box = new THREE.Box3().setFromObject(obj);
+      obj.userData._top = { t: now, v: V3((box.min.x + box.max.x) / 2, box.max.y, (box.min.z + box.max.z) / 2) };
+    }
+    const v = obj.userData._top.v;
+    return V3(v.x, v.y + add, v.z);
   }
 
   // ---------------------------------------------------------------- PORTRAIT / SNAPSHOT

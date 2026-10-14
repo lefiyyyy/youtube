@@ -367,7 +367,8 @@ export const Stream = {
           else if (roll < dChance + 0.42 && hasCat) catCameo();
           else clipMoment();
         }
-        if (Math.random() < S2.viewers * 0.0018 * dt * 10 * (S2.train > 0 ? 3 : 1)) subAlert();
+        if (Math.random() < Math.min(0.25, S2.viewers * 0.01) * dt * (S2.train > 0 ? 2.5 : 1)) subAlert();
+        S2.subs += S2.viewers * 0.0004 * dt; // quiet memberships on bigger streams
         if (S2.train > 0 && Math.random() < dt * 1.2) donation();
         // UI
         R.vw.textContent = fmt(S2.viewers);
