@@ -100,6 +100,7 @@ tools/                    dev tooling: Playwright playthroughs, screenshots, bal
 * `node tools/look.mjs 13 21` — high-quality room screenshots at the given in-game hours.
 * `node tools/sim.mjs [runs] ['{"RV":2.0}']` — economy pacing simulator (prints level / fans / money over real minutes).
 * `node tools/check.mjs` — syntax-checks every ES module.
+* `node tools/build-artifact.mjs public <outDir>` — packages the game as a single page for a Claude Artifact (inline CSS, Three.js from jsDelivr, fonts from Google Fonts, game modules as supporting files).
 
 Tools expect the server on `http://localhost:8080` and Playwright's Chromium (`npm i playwright` in `tools/` if needed).
 
