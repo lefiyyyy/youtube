@@ -1,0 +1,32 @@
+<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;height:100%;background:#1b1c2e}</style>
+<script type="importmap">{"imports":{"three":"../vendor/three/three.module.min.js"}}</script></head><body>
+<script type="module">
+import * as THREE from 'three';
+import { RoomEnvironment } from '../vendor/three/addons/environments/RoomEnvironment.js';
+import { Character } from '../js/world/character.js';
+const r = new THREE.WebGLRenderer({antialias:true}); r.setSize(innerWidth, innerHeight); document.body.appendChild(r.domElement);
+r.toneMapping = THREE.ACESFilmicToneMapping; r.shadowMap.enabled = true;
+const sc = new THREE.Scene(); sc.background = new THREE.Color('#2a2c45');
+const pm = new THREE.PMREMGenerator(r); sc.environment = pm.fromScene(new RoomEnvironment(), 0.04).texture; sc.environmentIntensity = 0.5;
+const cam = new THREE.PerspectiveCamera(30, innerWidth/innerHeight, 0.05, 50);
+sc.add(new THREE.HemisphereLight('#dfe8ff', '#3a2f3f', 1.2));
+const d = new THREE.DirectionalLight('#fff3e0', 2.2); d.position.set(2,4,3); sc.add(d);
+const q = new URLSearchParams(location.search);
+const profiles = [
+ {hair:'swoop', hairColor:'#2b1d16', skin:'#e8b48f', eyes:'#3b2a20', outfit:'hoodie', top:'#8f6bff', bottom:'#2b2f45', accessory:'headphones', accent:'#ff4f8b'},
+ {hair:'bob', hairColor:'#ff6fa8', skin:'#f7d7c4', eyes:'#2a6f5e', outfit:'tee', top:'#2fd6ff', bottom:'#23253a', accessory:'glasses', accent:'#ffb547'},
+ {hair:'curly', hairColor:'#2b1d16', skin:'#8a5634', eyes:'#2b1a10', outfit:'jacket', top:'#ff4f8b', bottom:'#1d1f2b', accessory:'cap', accent:'#2fd6ff'},
+ {hair:'long', hairColor:'#e8c36b', skin:'#f7d7c4', eyes:'#3a5f9e', outfit:'sweater', top:'#ffb547', bottom:'#3a4a6b', accessory:'none', accent:'#8f6bff'},
+ {hair:'bun', hairColor:'#5a3a22', skin:'#d39a6a', eyes:'#3b2a20', outfit:'tech', top:'#23253a', bottom:'#1d1f2b', accessory:'catears', accent:'#9dff5a'},
+ {hair:'spiky', hairColor:'#7b6bff', skin:'#b0764d', eyes:'#3b2a20', outfit:'hoodie', top:'#9dff5a', bottom:'#2b2f45', accessory:'beanie', accent:'#ff5d5d'},
+];
+const chars = [];
+const clip = q.get('clip') || 'idle';
+profiles.forEach((p,i)=>{ const c = new Character(p); c.root.position.x = (i-2.5)*0.75; c.root.rotation.y = q.get('ry') ? Number(q.get('ry')) : 0; sc.add(c.root); c.play(clip); c.setExpression(q.get('expr')||'happy'); c.seatDrop=-0.25; chars.push(c); });
+const close = q.get('close');
+if (close) { cam.position.set(Number(close)*0.75 - 2.5*0.75 + 0, 1.3, 1.2); cam.lookAt(Number(close)*0.75-2.5*0.75, 1.25, 0); }
+else { cam.position.set(0, 1.1, 9); cam.lookAt(0, 0.8, 0); }
+let last = performance.now();
+function loop(){ const t=performance.now(); const dt=Math.min(0.05,(t-last)/1000); last=t; chars.forEach(c=>c.update(dt)); r.render(sc,cam); requestAnimationFrame(loop);} loop();
+window.__ready = true;
+</script></body></html>

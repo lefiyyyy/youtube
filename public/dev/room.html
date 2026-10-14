@@ -1,0 +1,26 @@
+<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;height:100%;overflow:hidden;background:#000}#c{position:fixed;inset:0}</style>
+<script type="importmap">{"imports":{"three":"../vendor/three/three.module.min.js"}}</script></head><body><div id="c"></div>
+<script type="module">
+import { World } from '../js/world/world.js';
+import { freshState } from '../js/core/state.js';
+const q = new URLSearchParams(location.search);
+const s = freshState();
+s.home = +(q.get('home')||0);
+const gt = +(q.get('gear')||0);
+for (const k of Object.keys(s.gear)) s.gear[k] = Math.min(gt, {pc:5,monitor:5,camera:4,mic:4,light:5,chair:4,desk:4,keys:3,net:3}[k]);
+if (q.get('theme')) s.theme = q.get('theme');
+if (q.get('decor')) s.placed = q.get('decor').split(',');
+s.milestones = ['m100','m1k','m10k'];
+const w = new World(document.getElementById('c'));
+w.state = s;
+w.setQuality(q.get('q')||'high');
+w.build(s);
+w.applyTime(+(q.get('hour')||20), true);
+w.screens.data.game = {scene:q.get('scene')||'racing', pal:['#ff2fd1','#120a2e','#2ff3ff','#fff36b']};
+w.screens.setMode('main', q.get('mode')||'game'); w.screens.setMode('side','chat'); w.screens.setMode('laptop','desktop');
+if (q.get('sit')) { w.sitAtDesk().then(()=>w.char.play(q.get('clip')||'sitGame')); }
+w.shot(q.get('shot')||'room', {}, true);
+let last=performance.now();
+function loop(){const t=performance.now();const dt=Math.min(0.05,(t-last)/1000);last=t;w.update(dt);w.render();requestAnimationFrame(loop);} loop();
+window.w = w;
+</script></body></html>

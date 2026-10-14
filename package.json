@@ -1,0 +1,12 @@
+{
+  "name": "streamer-rise",
+  "version": "1.0.0",
+  "description": "STREAMER RISE — a 3D creator life simulator (Three.js). Grow from a tiny bedroom setup into an elite creator studio.",
+  "private": true,
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js 8080"
+  },
+  "engines": { "node": ">=16" },
+  "license": "UNLICENSED"
+}
