@@ -10,7 +10,7 @@ import { GEAR } from '../data/gear.js';
 import { DECOR, HOMES, THEMES } from '../data/decor.js';
 import { FOODS } from '../data/food.js';
 import { trendFor, totalFans, setupStats } from './economy.js';
-import { toast, fly, modal, anyModal, h, bind, ic, $ } from '../ui/ui.js';
+import { toast, fly, modal, anyModal, h, bind, ic, $, pointAt } from '../ui/ui.js';
 import { eventForDay, EVENTS } from '../data/events.js';
 
 export class Game {
@@ -28,6 +28,8 @@ export class Game {
     if (this.busy) return false;
     this.busy = name; G.flow = name;
     G.world.inputEnabled = false;
+    pointAt(null);
+    G.ui.hud.highlight(null);
     try { await fn(); } catch (e) { console.error(e); }
     this.busy = false; G.flow = null;
     G.world.inputEnabled = true;
@@ -204,6 +206,7 @@ export class Game {
       case 'door': return G.life.door();
       case 'cat': return G.life.petCat();
       case 'sofa': return G.life.sofa();
+      case 'me': return G.life.selfTalk();
     }
   }
   onFloor(p) {

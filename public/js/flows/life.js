@@ -139,6 +139,7 @@ export const Life = {
       requestAnimationFrame(() => (dim.style.opacity = 1));
       const startFans = s.fans.vid, startMoney = s.money, startViews = s.stats.views;
       const toMorning = ((24 - G.game.hour) + 8) % 24 || 24;
+      W.powerOff();
       const zz = setInterval(() => W.vfx.emit('z', W.headWorld().add(new THREE.Vector3(0, 0.2, 0)), { count: 1, size: 0.16, life: 2, vel: new THREE.Vector3(0.15, 0.4, 0.1), wobble: 0.3 }), 450);
       // time-lapse
       const steps = 24;
@@ -257,4 +258,24 @@ export const Life = {
     });
   },
   wardrobe() { if (G.game.busy) return; G.creator.open('wardrobe'); },
+  selfTalk() {
+    const s = G.s, W = G.world;
+    if (W.charMode !== 'idle') return;
+    const tr = G.game.trend();
+    const goal = G.game.nextGoal();
+    const lines = [];
+    if (s.needs.hunger < 35) lines.push([`${ic('food')} My stomach is louder than my mic...`, 'sad']);
+    if (s.needs.energy < 30) lines.push([`${ic('zzz')} So... sleepy...`, 'tired']);
+    if (goal && s.money >= goal.price) lines.push([`${ic('cart')} That ${goal.name} is calling me`, 'happy']);
+    lines.push([`${ic('flame')} ${tr.hot[0].toUpperCase() + tr.hot.slice(1)} games are hot right now!`, 'happy']);
+    lines.push([`${ic('live')} Chat probably misses me`, 'happy'], [`${ic('sparkle')} One more upload. Just one.`, 'cool'], [`${ic('heart')} ${fmt(totalFans(s))} fans. Unreal.`, 'happy']);
+    if (s.videos[0]) lines.push([`${ic('eye')} My last video hit ${fmt(s.videos[0].views)} views!`, 'happy']);
+    const [txt, expr] = lines[Math.floor(Math.random() * Math.min(lines.length, s.needs.hunger < 35 || s.needs.energy < 30 ? 1 : lines.length))];
+    W.char.lookTargetYaw = 0;
+    W.playOnce(expr === 'tired' ? 'yawn' : Math.random() < 0.5 ? 'wave' : 'fistPump', 1.6);
+    W.char.setExpression(expr === 'tired' ? 'tired' : expr === 'sad' ? 'sad' : 'happy', 2);
+    W.char.talking = true; setTimeout(() => (W.char.talking = false), 1200);
+    G.ui.labels.bubble(W.char.root, txt);
+    G.audio.sfx('pop');
+  },
 };

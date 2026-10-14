@@ -8,7 +8,7 @@ import { CREATORS } from '../data/sponsors.js';
 import { gameCover, drawGame } from '../world/screens.js';
 import { videoOutcome, setupStats, totalFans } from '../game/economy.js';
 import { hasFeature } from '../data/progression.js';
-import { makeThumb, smallJpeg } from './thumbs.js';
+import { makeThumb, smallJpeg, npcPortrait } from './thumbs.js';
 import { fmt, fmtMoney, clamp, sleep, pick, uid, isTouch } from '../core/util.js';
 
 export function overlay(html, cls = '') {
@@ -124,7 +124,7 @@ export const Create = {
     const s = G.s, fans = totalFans(s);
     const body = h(`<div class="grid">${CREATORS.map((c) => {
       const ok = fans >= c.fans * 0.25;
-      return `<button class="card click ${ok ? '' : 'locked'}" data-a="${ok ? 'p' : 'n'}" data-id="${c.id}"><div class="row"><div class="big-ic" style="background:${c.color};color:#111;border-radius:50%">${ic('user')}</div><div><div class="ttl">${c.name}</div><div class="tiny muted">${fmt(c.fans)} fans · ${c.niche}</div></div></div>
+      return `<button class="card click ${ok ? '' : 'locked'}" data-a="${ok ? 'p' : 'n'}" data-id="${c.id}"><div class="row"><div class="big-ic" style="background:${c.color};border-radius:50%;overflow:hidden"><img src="${npcPortrait(c)}" style="width:130%;margin-top:10%"></div><div><div class="ttl">${c.name}</div><div class="tiny muted">${fmt(c.fans)} fans · ${c.niche}</div></div></div>
         <div class="foot">${ok ? `<span class="chip good">x${(1.3 + Math.min(1.5, c.fans / Math.max(1, fans)) * 0.4).toFixed(1)} reach</span><span class="chip">${c.cost ? fmtMoney(c.cost) : 'Free'}</span>` : `<span class="chip">${ic('lock')}Need ${fmt(c.fans * 0.25)} fans</span>`}</div></button>`;
     }).join('')}</div>`);
     return new Promise((res) => {
@@ -487,12 +487,12 @@ export const Create = {
           <div class="stat subs"><div class="sl">${ic('users')}Subscribers</div><div class="sv" data-k="subs">+0</div></div>
           <div class="stat money"><div class="sl">${ic('dollar')}Revenue</div><div class="sv" data-k="money">$0</div></div>
           <div class="stat xp"><div class="sl">${ic('star')}XP</div><div class="sv" data-k="xp">+0</div></div>
-          <div class="stat"><div class="sl">${ic('thumb')}Likes</div><div class="sv" data-k="likes">0</div></div>
-          <div class="stat"><div class="sl">${ic('message')}Comments</div><div class="sv" data-k="comments">0</div></div>
-          <div class="stat"><div class="sl">${ic('eye')}Retention</div><div class="sv" data-k="ret">0%</div></div>
+          <div class="stat minor"><div class="sl">${ic('thumb')}Likes</div><div class="sv" data-k="likes">0</div></div>
+          <div class="stat minor"><div class="sl">${ic('message')}Comments</div><div class="sv" data-k="comments">0</div></div>
+          <div class="stat minor"><div class="sl">${ic('eye')}Retention</div><div class="sv" data-k="ret">0%</div></div>
         </div>
         ${spPay ? `<div class="chip good" style="margin-top:10px;align-self:flex-start">${ic('handshake')} ${esc(sponsor.brand)} deal complete +${fmtMoney(spPay)}</div>` : ''}
-        <div class="row" style="margin-top:14px;justify-content:flex-end"><button class="btn go big shine" data-a="ok" disabled>${ic('check')}Collect</button></div>
+        <div class="row collect-row" style="margin-top:14px;justify-content:flex-end"><button class="btn go big shine" data-a="ok" disabled>${ic('check')}Collect</button></div>
       </div></div>`);
     const tc = pub.canvas; tc.style.width = '100%';
     $('.res-thumb', el).appendChild(tc);

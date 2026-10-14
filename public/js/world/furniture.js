@@ -509,7 +509,7 @@ export function buildFridge(tier, th) {
   const big = tier >= 1;
   const W = tier === 0 ? 0.52 : tier === 1 ? 0.7 : tier === 2 ? 0.82 : 0.95;
   const H = tier === 0 ? 0.86 : 1.85, D = 0.66;
-  const body = tier >= 2 ? mat('#c9cdd6', { rough: 0.25, metal: 0.75 }) : mat(tier === 0 ? '#eef0f3' : '#f4f5f7', { rough: 0.35 });
+  const body = tier >= 2 ? mat('#c9cdd6', { rough: 0.25, metal: 0.75 }) : mat(tier === 0 ? '#dfe3ea' : '#e6e9ef', { rough: 0.45, env: 0.6 });
   at(rbox(W, H, D - 0.04, 0.03, body), g, 0, H / 2, -0.02);
   // interior
   const inner = mat('#f6f9ff', { rough: 0.5, emissive: '#dfeaff', ei: 0.0 });

@@ -14,6 +14,7 @@ import { decorById, THEMES } from '../data/decor.js';
 import { gameById, GENRES } from '../data/games.js';
 import { BUFFS } from '../data/food.js';
 import { totalFans, setupStats, dealPay } from '../game/economy.js';
+import { npcPortrait } from './thumbs.js';
 import { fmt, fmtMoney, clamp, sleep, dayIndex, msToNextDay, fmtDuration, seeded, now, uid, pick } from '../core/util.js';
 
 const center = () => ({ x: innerWidth / 2, y: innerHeight / 2 });
@@ -173,6 +174,7 @@ export const Meta = {
   updateBadges() {
     const s = G.s, r = G.ui?.hud?.refs;
     if (!r) return;
+    if (s.quests.day !== dayIndex()) this.ensureQuests();
     const done = s.quests.list.filter((q) => q.p >= q.t).length, unclaimed = s.quests.list.filter((q) => q.p >= q.t && !q.claimed).length;
     r.qn.textContent = `${done}/${s.quests.list.length}`;
     r.qn.className = 'q-n chip ' + (done === s.quests.list.length ? 'good' : '');
@@ -368,7 +370,7 @@ export const Meta = {
   collabs() {
     const s = G.s, fans = totalFans(s);
     const body = h(`<div><div class="tiny muted" style="font-weight:700;margin-bottom:10px">${ic('info')} Pick "Collab" as your video type to record with a partner. Bigger partners share bigger audiences.</div>
-      <div class="grid">${CREATORS.map((c) => { const ok = fans >= c.fans * 0.25; return `<div class="card ${ok ? '' : 'locked'}"><div class="row"><div class="big-ic" style="background:${c.color};color:#111;border-radius:50%">${ic('user')}</div><div><div class="ttl">${c.name}</div><div class="tiny muted">${fmt(c.fans)} fans · ${c.niche}</div></div></div><div class="foot">${ok ? `<span class="chip good">${ic('check')}Available</span>${s.collabs[c.id] ? `<span class="chip">${s.collabs[c.id]} collabs</span>` : ''}` : `<span class="chip">${ic('lock')}Need ${fmt(c.fans * 0.25)} fans</span>`}</div></div>`; }).join('')}</div>
+      <div class="grid">${CREATORS.map((c) => { const ok = fans >= c.fans * 0.25; return `<div class="card ${ok ? '' : 'locked'}"><div class="row"><div class="big-ic" style="background:${c.color};border-radius:50%;overflow:hidden"><img src="${npcPortrait(c)}" style="width:130%;margin-top:10%"></div><div><div class="ttl">${c.name}</div><div class="tiny muted">${fmt(c.fans)} fans · ${c.niche}</div></div></div><div class="foot">${ok ? `<span class="chip good">${ic('check')}Available</span>${s.collabs[c.id] ? `<span class="chip">${s.collabs[c.id]} collabs</span>` : ''}` : `<span class="chip">${ic('lock')}Need ${fmt(c.fans * 0.25)} fans</span>`}</div></div>`; }).join('')}</div>
       <div class="row" style="justify-content:flex-end;margin-top:14px"><button class="btn violet" data-a="go">${ic('play')}Record a collab</button></div></div>`);
     const m = modal({ title: 'Collabs', icon: 'users', iconBg: 'linear-gradient(135deg,#b48cff,#6236e0)', body, size: 'lg' });
     bind(body, { go: () => { m.close(true); G.game.doCreate(); } });

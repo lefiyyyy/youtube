@@ -18,6 +18,16 @@ function wrap(ctx, text, x, y, maxW, lh, maxLines = 3) {
   lines.forEach((l, i) => { ctx.strokeText?.(l, x, y + i * lh); ctx.fillText(l, x, y + i * lh); });
   return lines.length;
 }
+const npcCache = new Map();
+const NPC_HAIR = { luna: 'long', turbo: 'spiky', spooky: 'buzz', nia: 'bob', mika: 'bun', king: 'curly' };
+const NPC_ACC = { luna: 'catears', turbo: 'cap', spooky: 'glasses', nia: 'headphones', mika: 'none', king: 'beanie' };
+export function npcPortrait(c) {
+  if (npcCache.has(c.id)) return npcCache.get(c.id);
+  const prof = { name: c.name, hair: NPC_HAIR[c.id] || 'swoop', hairColor: c.hair, skin: c.skin, eyes: '#3b2a20', outfit: ['hoodie', 'tee', 'jacket', 'tech', 'sweater', 'hoodie'][c.name.length % 5], top: c.color, bottom: '#23253a', accessory: NPC_ACC[c.id] || 'none', accent: c.color };
+  const url = G.world.portrait('happy', 128, 'idle', prof).toDataURL();
+  npcCache.set(c.id, url);
+  return url;
+}
 export function makeThumb(style, game, title, W = 480, H = 270) {
   const c = document.createElement('canvas'); c.width = W; c.height = H;
   const ctx = c.getContext('2d');

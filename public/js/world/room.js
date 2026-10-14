@@ -200,6 +200,20 @@ export class Room {
       this.skyPlane = sp;
       this.skyAspect = (maxX - minX) / (maxY - minY);
     }
+    // light shafts through back windows
+    this.shafts = [];
+    const shaftTex = canvasTex(64, 256, (ctx, w, h) => { const g = ctx.createLinearGradient(0, 0, 0, h); g.addColorStop(0, 'rgba(255,255,255,0.9)'); g.addColorStop(1, 'rgba(255,255,255,0)'); ctx.fillStyle = g; ctx.fillRect(0, 0, w, h); const g2 = ctx.createLinearGradient(0, 0, w, 0); g2.addColorStop(0, 'rgba(0,0,0,1)'); g2.addColorStop(0.2, 'rgba(0,0,0,0)'); g2.addColorStop(0.8, 'rgba(0,0,0,0)'); g2.addColorStop(1, 'rgba(0,0,0,1)'); ctx.globalCompositeOperation = 'destination-out'; ctx.fillStyle = g2; ctx.fillRect(0, 0, w, h); });
+    for (const wdef of L.windows.filter((w) => w.wall === 'back')) {
+      const len = Math.min(D * 0.7, 3.2);
+      const m = new THREE.MeshBasicMaterial({ map: shaftTex, transparent: true, opacity: 0.12, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, color: '#ffe9c7', fog: false });
+      const sh = new THREE.Mesh(new THREE.PlaneGeometry(wdef.w * 0.95, len), m);
+      sh.userData.ownGeo = true; sh.userData.noShadow = true;
+      sh.position.set(wdef.x + 0.15, wdef.y + wdef.h * 0.5 - len * 0.32, -D / 2 + len * 0.42);
+      sh.rotation.x = -0.95;
+      sh.renderOrder = 5;
+      r.add(sh);
+      this.shafts.push(m);
+    }
     // door
     const door = F.buildDoor(th);
     if (L.door.wall === 'back') at(door, r, L.door.x, 0, -D / 2 - t / 2);
@@ -363,6 +377,7 @@ export class Room {
     const mons = F.buildMonitors(g.monitor, th.accent, screens);
     at(mons, rig, 0, H, -d / 2 + 0.2);
     parts.monitor = mons;
+    mons.traverse((o) => o.layers.set(1));
     // laptop (pc tier 0)
     if (g.pc === 0) {
       const lp = F.buildPC(0, th.accent, screens);
@@ -395,6 +410,7 @@ export class Room {
     if (g.camera >= 1 && g.camera <= 2) at(cam, rig, monX, H + monTop, -d / 2 + 0.19);
     else if (g.camera >= 3) at(cam, rig, w / 2 - 0.2, H, -d / 2 + 0.16, 0, -0.3, 0);
     parts.camera = cam;
+    cam.traverse((o) => o.layers.set(1));
     this.tally = cam.userData.tally || null;
     // stream camera viewpoint (where the facecam looks from)
     this.camPoint = new THREE.Vector3(L.desk.x + monX, H + monTop + 0.06, dz - d / 2 + 0.26);

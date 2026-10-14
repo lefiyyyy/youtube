@@ -185,6 +185,7 @@ export class AudioEngine {
   schedule() {
     const c = this.ctx;
     if (!c || c.state !== 'running') return;
+    if (this.nextT < c.currentTime - 0.2) this.nextT = c.currentTime + 0.05; // resume without a catch-up burst
     while (this.nextT < c.currentTime + 0.15) {
       const live = this.mode === 'live';
       const bpm = live ? 118 : this.mode === 'night' ? 74 : 82;

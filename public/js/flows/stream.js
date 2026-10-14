@@ -444,11 +444,11 @@ export const Stream = {
         <div class="stat subs"><div class="sl">${ic('users')}New followers</div><div class="sv" data-k="f">+0</div></div>
         <div class="stat money"><div class="sl">${ic('dollar')}Donations &amp; subs</div><div class="sv" data-k="m">$0</div></div>
         <div class="stat xp"><div class="sl">${ic('star')}XP</div><div class="sv" data-k="x">+0</div></div>
-        <div class="stat"><div class="sl">${ic('eye')}Avg viewers</div><div class="sv" data-k="a">0</div></div>
-        <div class="stat"><div class="sl">${ic('message')}Chat messages</div><div class="sv" data-k="c">0</div></div>
-        <div class="stat"><div class="sl">${ic('scissors')}Clips saved</div><div class="sv" data-k="cl">0</div></div>
+        <div class="stat minor"><div class="sl">${ic('eye')}Avg viewers</div><div class="sv" data-k="a">0</div></div>
+        <div class="stat minor"><div class="sl">${ic('message')}Chat messages</div><div class="sv" data-k="c">0</div></div>
+        <div class="stat minor"><div class="sl">${ic('scissors')}Clips saved</div><div class="sv" data-k="cl">0</div></div>
       </div>
-      <div class="row" style="margin-top:16px;justify-content:flex-end"><button class="btn go big shine" data-a="ok" disabled>${ic('check')}Collect</button></div></div>`);
+      <div class="row collect-row" style="margin-top:16px;justify-content:flex-end"><button class="btn go big shine" data-a="ok" disabled>${ic('check')}Collect</button></div></div>`);
     G.audio.sfx('whoosh');
     await Promise.all([
       countUp($('.pk', el), 0, S2.peak, 1500),

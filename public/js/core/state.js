@@ -31,8 +31,8 @@ export function freshState() {
     games: ['blocktopia', 'pixelkart'],
     gameUse: {}, // id -> fatigue 0..1
     gear,
-    decor: [], // owned decor ids
-    placed: [], // placed decor ids
+    decor: ['poster_pixel', 'plant_small'], // owned decor ids
+    placed: ['poster_pixel', 'plant_small'], // placed decor ids
     theme: 'gamer',
     themes: ['cozy', 'gamer'],
     home: 0,

@@ -80,7 +80,7 @@ try {
   await page.keyboard.press('Digit1'); await wait(1500);
   await page.keyboard.press('Digit2'); await wait(900);
   await shot('live_qte');
-  await page.mouse.click(+w / 2, +h * 0.46); await wait(2000);
+  { const q = await page.$('.qte'); if (q) await q.dispatchEvent('pointerdown'); } await wait(2000);
   for (let i = 0; i < 6; i++) { const t = await page.$('[data-thank]'); if (t) await t.dispatchEvent('pointerdown'); const b = await page.$('[data-ban]'); if (b) await b.dispatchEvent('pointerdown'); await page.keyboard.press('Digit3'); await page.keyboard.press('Digit1'); await wait(2500); }
   await shot('live2');
   await wait(20000);

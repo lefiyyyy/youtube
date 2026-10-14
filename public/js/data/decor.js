@@ -40,7 +40,7 @@ export const decorById = (id) => DECOR.find((d) => d.id === id);
 // Room style themes (walls, floor, fabrics). LED accent color is chosen separately.
 export const THEMES = {
   cozy:    { name: 'Cozy',            level: 1,  price: 0,    wall: '#e9d6c3', wall2: '#d9c0a8', trim: '#f6ece2', floor: 'wood',   floorTint: '#b98559', fabric: '#f3a9a0', fabric2: '#fdf1e6', wood: '#b37a4c', metal: '#2b2b33' },
-  gamer:   { name: 'RGB Gamer',       level: 1,  price: 0,    wall: '#2a2c45', wall2: '#22243a', trim: '#34375a', floor: 'wood',   floorTint: '#5c4a43', fabric: '#4b4f8c', fabric2: '#2e3156', wood: '#3a3445', metal: '#16161f' },
+  gamer:   { name: 'RGB Gamer',       level: 1,  price: 0,    wall: '#323556', wall2: '#282a46', trim: '#3d4068', floor: 'wood',   floorTint: '#6e5548', fabric: '#4b4f8c', fabric2: '#2e3156', wood: '#3a3445', metal: '#16161f' },
   minimal: { name: 'Clean Minimal',   level: 4,  price: 900,  wall: '#eef0f2', wall2: '#e2e5e9', trim: '#ffffff', floor: 'oak',    floorTint: '#dcc2a0', fabric: '#c8d3dc', fabric2: '#f7f9fb', wood: '#e2c9a6', metal: '#e8e8ea' },
   luxury:  { name: 'Luxury Creator',  level: 12, price: 20000, wall: '#1f3b36', wall2: '#183029', trim: '#c9a45c', floor: 'marble', floorTint: '#ece7df', fabric: '#2e5a52', fabric2: '#efe6d6', wood: '#5b3a28', metal: '#c9a45c' },
   tech:    { name: 'High-Tech Studio',level: 16, price: 35000,wall: '#101828', wall2: '#0c1220', trim: '#1fd2ff', floor: 'tile',   floorTint: '#2a3245', fabric: '#2a3a5c', fabric2: '#1a2234', wood: '#222b3d', metal: '#9aa7bd' },

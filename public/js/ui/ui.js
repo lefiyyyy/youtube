@@ -219,8 +219,8 @@ export class HUD {
     r.career.textContent = s.profile.title || careerTitle(lvl);
     const m = Math.floor(s.clock.min), hh = Math.floor(m / 60) % 24, mm = m % 60;
     const ampm = hh >= 12 ? 'PM' : 'AM', h12 = ((hh + 11) % 12) + 1;
-    r.tm.textContent = `${h12}:${String(mm - (mm % 5)).padStart(2, '0')}`;
-    r.day.textContent = `Day ${s.clock.day} ${ampm}`;
+    r.tm.innerHTML = `${h12}:${String(mm - (mm % 5)).padStart(2, '0')}<small>${ampm}</small>`;
+    r.day.textContent = `Day ${s.clock.day}`;
     const night = hh >= 19 || hh < 6;
     if (this._night !== night) { this._night = night; r.clockI.firstElementChild.outerHTML = ic(night ? 'moon' : 'sun'); }
   }
@@ -258,10 +258,11 @@ export class Labels {
       const p = w.toScreen(o.userData.labelPoint ? o.userData.labelPoint : w.objTop(o, 0.1));
       this.hoverEl.style.left = p.x + 'px'; this.hoverEl.style.top = p.y + 'px';
     }
+    const busy = !!G.game?.busy;
     for (const { e, obj } of this.markers.values()) {
       const p = w.toScreen(obj.userData.labelPoint ? obj.userData.labelPoint : w.objTop(obj, 0.25));
       e.style.left = p.x + 'px'; e.style.top = p.y + 'px';
-      e.style.display = p.visible ? '' : 'none';
+      e.style.display = p.visible && !busy ? '' : 'none';
     }
   }
 }

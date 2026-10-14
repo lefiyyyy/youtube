@@ -27,11 +27,11 @@ export function woodFloor(tint, kind = 'wood') {
       let x = -Math.random() * 200;
       while (x < w) {
         const len = 160 + Math.random() * 220;
-        const base = shade(tint, (Math.random() - 0.5) * 0.08);
+        const base = shade(tint, (Math.random() - 0.5) * 0.045);
         ctx.fillStyle = base;
         ctx.fillRect(x, r * ph, len, ph);
         // grain
-        ctx.globalAlpha = 0.18;
+        ctx.globalAlpha = 0.12;
         for (let i = 0; i < 9; i++) {
           ctx.strokeStyle = shade(tint, -0.12 + Math.random() * 0.06);
           ctx.lineWidth = 0.6 + Math.random() * 1.4;

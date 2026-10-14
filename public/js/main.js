@@ -60,6 +60,7 @@ async function boot() {
   bus.on('world:floor', (p) => G.game.onFloor(p));
   bus.on('sfx', (n) => audio.sfx(n));
   world.applyTime(G.game.hour, true);
+  world.powerOff();
   bar(0.9);
   await sdkP;
   SDK.loadingStop();
@@ -68,13 +69,24 @@ async function boot() {
   bar(1);
   // main loop
   let last = performance.now(), slow = 0;
+  const perf = { frames: 0, time: 0, checks: 0 };
   const loop = (t) => {
-    const dt = Math.min(0.05, (t - last) / 1000); last = t;
+    const dt = Math.min(0.1, (t - last) / 1000); last = t;
+    if (window.__pauseRender) { requestAnimationFrame(loop); return; }
     world.update(dt);
     G.game.update(dt);
     G.ui.hud.update(dt);
     G.ui.labels.update();
     world.render();
+    // adaptive quality on 'auto': step down if the device struggles
+    if (s.settings.quality === 'auto' && !qp && perf.checks < 3 && !document.hidden) {
+      perf.frames++; perf.time += (t - (perf.lastT || t)) / 1000; perf.lastT = t;
+      if (perf.time > 6) {
+        const fps = perf.frames / perf.time;
+        perf.checks++; perf.frames = 0; perf.time = 0;
+        if (fps < 26 && world.quality !== 'low') { world.setQuality(world.quality === 'high' ? 'medium' : 'low'); world.applyTime(G.game.hour, true); console.info('Auto quality ->', world.quality, fps.toFixed(1) + 'fps'); }
+      }
+    }
     slow += dt;
     if (slow > 0.5) {
       slow = 0;

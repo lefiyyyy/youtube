@@ -30,6 +30,7 @@ export class World {
     this.canvas = this.renderer.domElement;
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(32, 1, 0.05, 100);
+    this.camera.layers.enable(1);
     this.screens = new ScreenManager();
     this.sky = new Skyline();
     this.vfx = new VFX(this.scene);
@@ -211,6 +212,7 @@ export class World {
     this.keyLight.intensity = (g.light || 0) >= 3 ? lerp(2.2, 1.2, dayK) * ((g.light || 0) >= 4 ? 1.3 : 1) : (g.light === 1 || g.light === 2 ? 0.6 : 0);
     if (this.quality === 'low') { this.windowLight.intensity *= 0.6; this.keyLight.intensity = 0; this.lampLight.intensity = 0; }
     this.bloom.strength = lerp(0.75, 0.45, dayK);
+    for (const m of this.room?.shafts || []) { m.opacity = lerp(0.035, 0.16, dayK); m.color.set(dayK > 0.5 ? (hour > 16 ? '#ffc98f' : '#ffeed2') : '#9fb2ff'); }
     this.renderer.toneMappingExposure = lerp(1.15, 1.02, dayK);
     // background gradient
     const ctx = this.bgCanvas.getContext('2d');
@@ -229,7 +231,7 @@ export class World {
     const size = Math.max(r.W * 0.92, r.D * 1.15);
     const aspect = this.W / this.H;
     const fovR = (this.cam.fov * PI) / 180;
-    let dist = (size * 0.62) / Math.tan(fovR / 2);
+    let dist = (size * 0.56) / Math.tan(fovR / 2);
     if (aspect < 1.5) dist *= 1.5 / aspect * 0.92;
     return dist;
   }
@@ -324,8 +326,10 @@ export class World {
       cam.lookAt(look);
       cam.fov = damp(cam.fov, f.fov, 6, dt);
       cam.clearViewOffset();
+      cam.layers.disable(1);
     } else {
       this._fixedInit = false;
+      cam.layers.enable(1);
       C.target.lerp(G.target, 1 - Math.exp(-k * dt));
       const uy = this.shotName === 'room' ? this.camUser.yaw : 0, up = this.shotName === 'room' ? this.camUser.pitch : 0;
       const uz = this.shotName === 'room' ? this.camUser.zoom : 1;
@@ -387,21 +391,27 @@ export class World {
   async sitAtDesk() {
     if (this.charMode === 'sit') return;
     await this.goTo('desk');
+    if (this.screens.surface('main').mode === 'off') {
+      this.char.play('pressButton', { restart: true });
+      bus.emit('sfx', 'power');
+      await new Promise((r) => setTimeout(r, 650));
+      this.powerOn();
+    }
     const seat = this.room.st.desk.seat;
-    this.slideTo(seat.x, seat.z, seat.ry, 0.45);
+    const p = this.slideTo(seat.x, seat.z, seat.ry, 0.45);
     this.char.seatDrop = -0.24;
     this.char.play('sit', { blend: 7 });
     this.charMode = 'sit';
     if (this.room.chair) this.room.chair.rotation.y = 0;
-    await new Promise((r) => setTimeout(r, 450));
+    await p;
   }
   async lieDown() {
     await this.goTo('bed');
     const l = this.room.st.bed.lie;
-    this.slideTo(l.x, l.z, l.ry, 0.6, l.y - 0.02);
+    const p = this.slideTo(l.x, l.z, l.ry, 0.6, l.y - 0.02);
     this.char.play('sleep', { blend: 5 });
     this.charMode = 'lie';
-    await new Promise((r) => setTimeout(r, 650));
+    await p;
   }
   async sitSofa() {
     const st = this.room.st.sofa;
@@ -412,7 +422,10 @@ export class World {
     this.char.play('sit', { blend: 7 });
     this.charMode = 'sit';
   }
+  powerOff() { for (const k of ['main', 'side', 'side2', 'laptop']) this.screens.setMode(k, 'off'); }
+  powerOn() { this.screens.setMode('main', 'desktop'); this.screens.setMode('laptop', 'desktop'); this.screens.setMode('side', 'chat'); this.screens.setMode('side2', 'analytics'); }
   standUp() {
+    if (this.slide) { const r = this.slide.res; this.slide = null; r && r(); }
     if (this.charMode === 'sit' || this.charMode === 'lie') {
       const p = this.char.root.position;
       const back = this.charMode === 'lie' ? this.room.st.bed : null;
@@ -427,7 +440,8 @@ export class World {
     }
   }
   slideTo(x, z, ry, dur, y = 0) {
-    this.slide = { from: this.char.root.position.clone(), to: V3(x, y, z), fromRy: this.char.root.rotation.y, ry, t: 0, dur };
+    if (this.slide?.res) this.slide.res();
+    return new Promise((res) => { this.slide = { from: this.char.root.position.clone(), to: V3(x, y, z), fromRy: this.char.root.rotation.y, ry, t: 0, dur, res }; });
   }
   updateChar(dt) {
     const c = this.char, root = c.root;
@@ -441,7 +455,7 @@ export class World {
       const e = k * k * (3 - 2 * k);
       root.position.lerpVectors(sl.from, sl.to, e);
       root.rotation.y = lerpAngle(sl.fromRy, sl.ry, e);
-      if (k >= 1) this.slide = null;
+      if (k >= 1) { const r = sl.res; this.slide = null; r && r(); }
     }
     if (this.charMode === 'walk') {
       const target = this.path[0];
@@ -558,12 +572,13 @@ export class World {
     this.ray.setFromCamera(this.ptr, this.camera);
   }
   pickInteract() {
-    const objs = this.room.interact.map((i) => i.obj);
+    if (!this._meInteract) { this.char.root.userData.interact = 'me'; this._meInteract = { id: 'me', obj: this.char.root, label: 'You', icon: 'user' }; }
+    const objs = [...this.room.interact.map((i) => i.obj), this.char.root];
     const hits = this.ray.intersectObjects(objs, true);
     for (const h of hits) {
       let o = h.object;
       while (o && !o.userData.interact) o = o.parent;
-      if (o) return this.room.interact.find((i) => i.obj === o);
+      if (o) return o === this.char.root ? this._meInteract : this.room.interact.find((i) => i.obj === o);
     }
     return null;
   }
@@ -624,7 +639,7 @@ export class World {
     if (!this._rts[k]) this._rts[k] = new THREE.WebGLRenderTarget(w, h, { samples: 4, type: THREE.HalfFloatType });
     return this._rts[k];
   }
-  portrait(expr = 'happy', size = 256, clip = 'idle') {
+  portrait(expr = 'happy', size = 256, clip = 'idle', profile = null) {
     if (!this.portraitScene) {
       this.portraitScene = new THREE.Scene();
       this.portraitScene.environment = this.scene.environment;
@@ -634,10 +649,11 @@ export class World {
       const rim = new THREE.DirectionalLight('#9fb8ff', 2.0); rim.position.set(-2, 1.5, -1.5); this.portraitScene.add(rim);
       this.portraitCam = new THREE.PerspectiveCamera(24, 1, 0.05, 20);
     }
-    const key = JSON.stringify(this.state.profile);
+    const prof = profile || this.state.profile;
+    const key = JSON.stringify(prof);
     if (!this.portraitChar || this.portraitChar._key !== key) {
       if (this.portraitChar) this.portraitScene.remove(this.portraitChar.root);
-      this.portraitChar = new Character(this.state.profile);
+      this.portraitChar = new Character(prof);
       this.portraitChar._key = key;
       this.portraitScene.add(this.portraitChar.root);
     }
@@ -668,6 +684,7 @@ export class World {
   }
   snapshot(kind = 'desk', w = 384, h = 288) {
     const cam = new THREE.PerspectiveCamera(42, w / h, 0.05, 100);
+    cam.layers.enable(1);
     const dd = this.room.deskDims;
     if (kind === 'desk') { cam.position.set(dd.x + 1.3, dd.H + 0.85, dd.z + 1.9); cam.lookAt(dd.x - 0.1, dd.H + 0.35, dd.z); }
     else { const r = this.room; cam.position.set(r.W * 0.42, 2.4, r.D * 0.55); cam.lookAt(-r.W * 0.1, 0.8, -r.D * 0.15); }
