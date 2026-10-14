@@ -89,7 +89,7 @@ export function videoOutcome(s, p) {
   const vChance = 0.035 + (p.perf > 0.85 ? 0.05 : 0) + (gm.tags.includes('trending') ? 0.05 : 0) + (p.title.id === 'trend' ? 0.02 : 0) + (p.thumb.id === 'neon' ? 0.02 : 0);
   if (n >= 2 && Math.random() < vChance) { viral = true; views *= 3 + Math.random() * 3; }
   views = Math.round(views);
-  const retention = clamp(0.35 + p.perf * 0.4 + (trust - 1) * 0.5 + (Q - 1) * 0.15, 0.15, 0.95);
+  const retention = clamp(0.35 + p.perf * 0.4 + (trust - 1) * 0.5 + (Q - 1) * 0.15, n === 0 ? 0.62 : 0.15, 0.95);
   const conv = TUNE.CONV * p.content.subs * Math.pow(trust, 1.2) * (0.7 + 0.3 * Q) * (0.75 + retention * 0.5) * (ev.followMult || 1);
   const subs = Math.round(views * conv);
   const likes = Math.round(views * (0.05 + retention * 0.06));
@@ -117,7 +117,9 @@ export function videoOutcome(s, p) {
   if (Q > 1.2) ins.push(['good', 'camera', 'Crisp production']);
   else if (Q < 0.68 && n > 2) ins.push(['bad', 'camera', 'Upgrade your setup']);
   if (subs > views * 0.07) ins.push(['good', 'users', 'Followers spike']);
-  return { views, subs, likes, comments, money, xp, tail, retention, viral, insights: ins.slice(0, 5), quality: Q, score: st.score };
+  // keep the very first upload's feedback encouraging
+  const shown = n === 0 ? ins.filter((i) => i[0] !== 'bad') : ins;
+  return { views, subs, likes, comments, money, xp, tail, retention, viral, insights: shown.slice(0, 5), quality: Q, score: st.score };
 }
 
 // ---------------------------------------------------------------- STREAM

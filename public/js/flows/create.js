@@ -412,7 +412,7 @@ export const Create = {
     const n = s.stats.videos + 1;
     const titles = makeTitles(game, content, n);
     if (partner) titles.forEach((t) => (t.text = t.text + ` ft. ${partner.name}`));
-    let ti = 0, si = 0;
+    let ti = 1, si = 0;
     const tr = G.game.trend(), trending = game.tags.includes(tr.hot) || s.buffs.trend > 0;
     if (trending) ti = 2;
     const el = overlay(`<div class="picker glass">
