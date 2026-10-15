@@ -53,7 +53,9 @@ Any static host works too — just serve the `public/` folder (e.g. upload it as
     donations, ban trolls, welcome raids and ride the hype train. The chat is modelled on real streams: the number of
     active chatters grows sub-linearly with viewers and each chatter writes a couple of messages a minute, so a
     5-viewer stream gets the odd message from the same few regulars while a 5,000-viewer stream scrolls fast.
-    Donations, subs, trolls, polls and hype trains scale with the audience too.
+    Donations, subs, trolls, polls and hype trains scale with the audience too. Big moments (a perfect Big Play, a
+    hype train, a raid, a big donation) make chat spam **W**'s — a couple on a tiny stream, a wall of them with a
+    live W counter on a big one.
   * **Post Social** — Blip and (level 8+) Lumo posts; Fit Check posts scale with your **style score**.
 * **Shop** — every item has a live 3D preview before you buy it:
   * **Setup**: PC, monitor, camera, microphone, lighting, chair, desk, keyboard & mouse, internet. Buy any unlocked
@@ -144,7 +146,7 @@ cooldown, platform mute and data saves.
 speed-up, no cursor, no black frames or text cards) and encode `promo/streamer-rise-landscape.mp4`
 (1920×1080) and `promo/streamer-rise-portrait.mp4` (1080×1620, 2:3). Both are ~19 s, silent, H.264, well under
 50 MB, and show: the studio with live HUD counters → recording a game and catching highlights → a premiere going
-viral → a live stream with chat → the rooftop party → the Gold Disc unboxing. Upload them as the game's
+viral → a perfect Big Play on stream that floods the chat with W's → the rooftop party → the Gold Disc unboxing. Upload them as the game's
 landscape and portrait videos in the CrazyGames developer portal.
 
 ## Development tools
