@@ -8,7 +8,7 @@ import { execFileSync } from 'child_process';
 
 const MODE = process.argv[2] === 'portrait' ? 'portrait' : 'landscape';
 const P = MODE === 'portrait';
-const VW = P ? 720 : 1280, VH = P ? 1080 : 720, DPR = 1.5; // → 1080x1620 / 1920x1080
+const VW = P ? 864 : 1280, VH = P ? 1296 : 720, DPR = P ? 1.25 : 1.5; // → 1080x1620 (2:3) / 1920x1080
 const FPS = 30, DT = 1000 / FPS;
 const OUT = process.argv[3] || 'tools/video';
 const FR = `${OUT}/frames_${MODE}`;
@@ -52,33 +52,43 @@ const js = (fn, arg) => page.evaluate(fn, arg);
 // ---- capture
 let fi = 0;
 const frame = async () => {
-  await tick(DT);
+  // two game-loop steps per video frame, but only the second one renders the 3D view (halves capture time)
+  await page.evaluate(() => (window.__noRender = true)); await tick(DT / 2);
+  await page.evaluate(() => (window.__noRender = false)); await tick(DT / 2);
   const r = await cdp.send('Page.captureScreenshot', { format: 'png', clip: { x: 0, y: 0, width: VW, height: VH, scale: DPR } });
   writeFileSync(`${FR}/f${String(fi++).padStart(5, '0')}.png`, Buffer.from(r.data, 'base64'));
 };
 const DRY = !!process.env.DRY; // DRY=1: one frame per second, to check the choreography quickly
+let live = !process.env.FROM; // FROM=<shot>: fast-forward through the earlier shots (for checking)
+const shot = (name) => { console.log('shot:', name); if (name === process.env.FROM) live = true; };
 const rec = async (sec, during) => {
+  if (!live) { await ff(sec * 1000); return; }
+  const t0 = Date.now();
   const n = Math.round(sec * FPS);
   for (let i = 0; i < n; i++) {
     if (during) await during(i / FPS);
-    if (DRY && i % FPS) { await tick(DT); continue; }
+    if (DRY && i % FPS) { await page.evaluate(() => (window.__noRender = true)); await tick(DT); await page.evaluate(() => (window.__noRender = false)); continue; }
     await frame();
   }
-  console.log(`  captured ${sec}s (total ${(fi / FPS).toFixed(1)}s)`);
+  console.log(`  captured ${sec}s (total ${(fi / FPS).toFixed(1)}s, ${((Date.now() - t0) / n / 1000).toFixed(2)}s per frame)`);
 };
 const settle = async () => { await page.evaluate(() => (window.__noRender = false)); for (let i = 0; i < 3; i++) await tick(DT); };
 
 try {
   console.log(MODE, `${VW * DPR}x${VH * DPR}`);
   await page.goto('http://localhost:8080/?fresh&q=high', { waitUntil: 'load' });
+  // stop the clock: from here on only our ticks move time
+  await page.clock.pauseAt((await page.evaluate(() => Date.now())) + 200);
   // ---- character + mid-game progress (off camera)
   await sel('.creator [data-a=done]');
   await tap('.creator [data-a=gender][data-v=f]');
   await tap('.creator [data-a=set][data-k=hair][data-v=ponytail]');
   await tap('.creator [data-a=done]');
   await until(() => !window.__G.game.busy && !document.querySelector('.creator'), null, 'creator closed');
-  await js(() => {
+  await js(async () => {
     const G = window.__G, s = G.s;
+    const { makeThumb, smallJpeg } = await import('/js/flows/thumbs.js');
+    const { gameById } = await import('/js/data/games.js');
     window.__autoplay = true;
     s.tutorial.done = true; s.tutorial.step = 99;
     s.profile.name = 'LunaPlays';
@@ -95,28 +105,31 @@ try {
     s.clock.min = 19 * 60 + 40;
     // a recent upload still collecting views (real-time)
     const now = Date.now();
-    s.videos.unshift({ id: 'v_trailer', title: 'I raced the BEST drivers in Neon Drift', game: 'neondrift', type: 'gameplay', thumb: '', tags: ['racing'], day: s.clock.day, perf: 0.9, grade: 'A', viral: false,
+    const title = 'I raced the BEST drivers in Neon Drift';
+    s.videos.unshift({ id: 'v_trailer', title, game: 'neondrift', type: 'gameplay', thumb: smallJpeg(makeThumb('neon', gameById('neondrift'), title)), tags: ['racing'], day: s.clock.day, perf: 0.9, grade: 'A', viral: false,
       V: 260000, b: 0, views: 0, subs: 0, likes: 0, dislikes: 0, comments: 0, money: 0, rt0: now - 40000, conv: 0.012, rpm: 0.004, lr: 0.06, dr: 0.002, cr: 0.01, fs: 0, fm: 0, fl: 0, fd: 0, fc: 0, vm: 9 });
     G.world.setProfile(s.profile);
     G.world.rebuildRoom();
     G.world.applyTime(G.game.hour, true);
+    G.game.accrueVideos(); G.game.accSubs = 0; G.ui.hud.rateHist = []; // no catch-up spike in subs/min
+    G.tutorial.refresh();
     G.ui.labels.clearMarkers(); G.ui.hud.highlight(null);
     G.ui.hud.setPortrait();
     G.game.refreshObjective();
     document.querySelectorAll('.modal-wrap [data-x]').forEach((b) => b.click());
   });
-  await ff(2500);
+  await ff(4000);
   await js(() => document.querySelectorAll('.modal-wrap [data-x], .modal-wrap [data-a=ok]').forEach((b) => b.click()));
-  await ff(800);
+  await ff(1500);
 
   // 1) the room: HUD alive, the latest upload ticking up in real time
-  console.log('shot: room');
+  shot('room');
   await js(() => { const W = window.__G.world; W.shot('room'); W.cam.yaw += 0.18; W.cam.dist *= 1.08; });
   await settle();
   await rec(2.6);
 
   // 2) recording: catch the highlights
-  console.log('shot: recording');
+  shot('recording');
   await tap('#hud [data-a=create]');
   await tap('.hub-card.video');
   await tap('[data-a=g][data-id=neondrift]');
@@ -126,13 +139,13 @@ try {
   await rec(3.2);
 
   // 3) premiere: live views, then VIRAL
-  console.log('shot: premiere');
+  shot('premiere');
   await sel('.edit-pick');
   await tap('.edit-opt[data-id=clean]');
   await sel('[data-a=pub]');
   await js(() => document.querySelectorAll('.tagb:not(.on)').forEach((b, i) => i < 2 && b.click()));
   // make this upload the lucky one (the viral roll happens right after the upload bar)
-  await js(() => { let x = 7; const r = () => ((x = (x * 16807) % 2147483647) / 2147483647); window.__rnd = Math.random; Math.random = () => r() ** 3; });
+  await js(() => { let x = 7; const r = () => ((x = (x * 16807) % 2147483647) / 2147483647); window.__rnd = Math.random; Math.random = () => r() ** 10; });
   await tap('[data-a=pub]');
   await sel('.premiere');
   await js(() => { Math.random = window.__rnd; });
@@ -147,7 +160,7 @@ try {
   await ff(600);
 
   // 4) live stream with a busy chat
-  console.log('shot: stream');
+  shot('stream');
   await tap('#hud [data-a=create]');
   await tap('.hub-card.stream');
   await tap('[data-a=g][data-id=galaxyroyale]');
@@ -169,7 +182,7 @@ try {
   await ff(600);
 
   // 5) going out: rooftop party with other creators
-  console.log('shot: party');
+  shot('party');
   await js(() => { void window.__G.out.party(); });
   await sel('.party-ui [data-a=dance]');
   await ff(1200);
@@ -177,14 +190,14 @@ try {
   await ff(400);
   await rec(3.0);
   await tap('.party-ui [data-a=leave]');
-  await until(() => !window.__G.game.busy, null, 'party done', 90000);
+  await until(() => { document.querySelector('.modal-wrap [data-a=ok]')?.click(); return !window.__G.game.busy; }, null, 'party done', 90000);
   await js(() => document.querySelectorAll('.modal-wrap [data-x], .modal-wrap [data-a=ok]').forEach((b) => b.click()));
   await ff(1500);
   await js(() => document.querySelectorAll('.modal-wrap [data-x], .modal-wrap [data-a=ok]').forEach((b) => b.click()));
   await ff(800);
 
   // 6) the Gold Disc arrives
-  console.log('shot: award');
+  shot('award');
   await js(() => { const G = window.__G; G.s.fans.vid = Math.max(G.s.fans.vid, 100500); G.game.checkMilestones(); });
   await until(() => window.__G.game.busy === 'award', null, 'award start');
   await ff(5200);

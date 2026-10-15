@@ -86,8 +86,15 @@ function migrate(d) {
   for (const k of Object.keys(base.stats)) if (d.stats[k] === undefined) d.stats[k] = base.stats[k];
   for (const k of Object.keys(base.profile)) if (d.profile[k] === undefined) d.profile[k] = base.profile[k];
   for (const k of Object.keys(base.settings)) if (d.settings[k] === undefined) d.settings[k] = base.settings[k];
-  // a premiere that was open when the game closed: let the video keep earning in the background
-  for (const v of d.videos || []) delete v.live;
+  // a premiere that was open when the game closed: credit what it earned so far (money was paid live)
+  // and let the video keep earning in the background
+  for (const v of d.videos || []) {
+    if (!v.live) continue;
+    d.fans.vid += v.subs || 0;
+    d.stats.views += v.views || 0; d.stats.likes += v.likes || 0; d.stats.videos++;
+    d.xp += v.pendXp || 0;
+    delete v.live; delete v.pendXp;
+  }
   d.v = SAVE_VERSION;
   return d;
 }

@@ -249,13 +249,14 @@ export const Stream = {
       A.sfx('qte');
       const end = (ok, label, col) => {
         if (done) return; done = true;
+        removeEventListener('keydown', keyH);
         floatText(innerWidth / 2, innerHeight * 0.4, label, col);
         setTimeout(() => box.remove(), 120);
         res(ok);
       };
       box.addEventListener('pointerdown', (e) => { e.stopPropagation(); const d = Math.abs(r - target); if (d < 14) end(2, 'PERFECT PLAY!', '#ffd54a'); else if (d < 30) end(1, 'NICE!', '#b6ff5c'); else end(0, 'WHIFFED', '#ff8f99'); });
-      const keyH = (e) => { if (e.code === 'Space') { e.preventDefault(); box.dispatchEvent(new PointerEvent('pointerdown')); } };
-      addEventListener('keydown', keyH, { once: true });
+      function keyH(e) { if (e.code === 'Space' && !e.repeat) { e.preventDefault(); box.dispatchEvent(new PointerEvent('pointerdown')); } }
+      addEventListener('keydown', keyH);
       let last = performance.now();
       const f = (t) => {
         if (done) return;
@@ -274,6 +275,7 @@ export const Stream = {
     const doAct = async (id) => {
       if (S2.ended || cds[id] > 0) return;
       const a = acts.find((x) => x.id === id);
+      if (!a) return; // not unlocked yet (hotkeys 4/5)
       if (id === 'clip') {
         if (S2.clipWindow <= 0) { A.sfx('error'); floatText(innerWidth * 0.3, innerHeight * 0.75, 'Wait for a highlight', '#ff8f99'); return; }
         S2.clipWindow = 0; S2.clips++; s.clips++; $('[data-a=clip]', el)?.classList.remove('flash');
@@ -502,6 +504,8 @@ export const Stream = {
     G.game.addXP(xp, fp);
     G.game.useBuff('xp2'); G.game.useBuff('wellfed');
     s.stats.streams++;
+    const deal = (s.deals?.active || []).find((d) => d.req === 'stream');
+    if (deal) G.meta.completeDeal(deal);
     s.stats.peakViewers = Math.max(s.stats.peakViewers, Math.round(S2.peak));
     s.stats.donations += S2.donations;
     s.gameUse[game.id] = clamp((s.gameUse[game.id] || 0) + 0.18, 0, 1);

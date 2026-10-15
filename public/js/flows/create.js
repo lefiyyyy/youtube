@@ -31,7 +31,7 @@ export function overlay(html, cls = '') {
   $('#screens').appendChild(el);
   return el;
 }
-export function closeOverlay(el) { if (!el) return; el.style.transition = 'opacity .2s'; el.style.opacity = '0'; setTimeout(() => el.remove(), 200); }
+export function closeOverlay(el) { if (!el) return; el.style.pointerEvents = 'none'; el.inert = true; el.style.transition = 'opacity .2s'; el.style.opacity = '0'; setTimeout(() => el.remove(), 200); }
 const steps = (n, i) => `<div class="step-dots">${Array.from({ length: n }, (_, k) => `<i class="${k < i ? 'done' : k === i ? 'on' : ''}"></i>`).join('')}</div>`;
 
 export function genreTags(g, max = 3) {
@@ -508,13 +508,13 @@ export const Create = {
       const lp = pts[pts.length - 1]; cx.fillStyle = '#fff'; cx.beginPath(); cx.arc(X(lp[0]), Y(lp[1]), 4.5, 0, 7); cx.fill();
     };
     const addComment = () => {
-      const c = makeComment({ quality: ctx.perf, trust: pub.thumb.trust * pub.title.trust, game: game.name, name: s.profile.name, views: vid.views, type: content.id, edit: ed.style });
+      const c = makeComment({ quality: ctx.perf, trust: pub.thumb.trust * pub.title.trust, game: game.name, name: s.profile.name, views: vid.views, type: content.id, edit: ed.style, mic: s.gear.mic });
       const row = h(`<div class="cm ${c.neg ? 'neg' : ''}"><i style="background:${USER_COLORS[Math.floor(Math.random() * USER_COLORS.length)]}">${c.user[0].toUpperCase()}</i><div><b>@${esc(c.user)}</b><span>${emotify(esc(c.text))}</span></div></div>`);
       comBox.prepend(row);
       while (comBox.children.length > 4) comBox.lastElementChild.remove();
     };
     // live: views, likes and subs arrive in real time while you watch; Continue whenever you like
-    vid.live = true;
+    vid.live = true; vid.pendXp = out.xp; // credited on Continue (or on the next load if the game closes first)
     const okBtn = $('[data-a=ok]', el);
     let tLast = -1, comT = 2.5, wasViral = false, revealed = false, done = false;
     const t0 = performance.now();
@@ -567,7 +567,7 @@ export const Create = {
     done = true;
     const dl = step(vid, Date.now());
     if (dl) { for (const key of Object.keys(tot)) tot[key] += dl[key]; fanBank += dl.subs; if (dl.money) G.game.addMoney(dl.money); }
-    delete vid.live;
+    delete vid.live; delete vid.pendXp;
     const from = okBtn.getBoundingClientRect();
     const fp = { x: from.left + from.width / 2, y: from.top };
     if (fanBank > 0) G.game.addFans('vid', fanBank, fp);
@@ -576,7 +576,7 @@ export const Create = {
     G.game.useBuff('xp2'); G.game.useBuff('wellfed');
     if (s.fans.blip > 0 || out.viral) G.game.addFans('blip', Math.round(out.subs * 0.08), null, true);
     s.stats.videos++; s.stats.views += vid.views; s.stats.likes += tot.likes;
-    if (!s.stats.best || vid.V > s.stats.best.views) s.stats.best = { views: vid.V, title: pub.title.text };
+    if (!s.stats.best || vid.views > s.stats.best.views) s.stats.best = { views: vid.views, title: pub.title.text };
     if (sponsor) G.meta.completeDeal(sponsor);
     if (out.viral) s.clips++;
     bus.emit('q', { evt: 'video', n: 1, tags: game.tags });

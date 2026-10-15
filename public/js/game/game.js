@@ -152,6 +152,7 @@ export class Game {
       if (n >= 100000) G.world.vfx.confetti(G.world.char.root.position.clone().add({ x: 0, y: 1.6, z: 0 }), 90, 2.4);
     }
     if (!views) return;
+    this.accSubs = (this.accSubs || 0) + subs; // HUD subs/min counts only this steady real-time flow
     s.stats.views += views;
     this.passive.views += views; this.passive.subs += subs; this.passive.money += money;
     if (subs) this.addFans('vid', subs, null, true);
@@ -165,6 +166,7 @@ export class Game {
     this.accrueVideos();
     const got = { ...this.passive };
     this.passive = { ...p0, t: 0 };
+    this.accSubs = 0; // the catch-up isn't a per-minute rate
     this.started = true;
     if (got.views >= 1 && awayH > 0.02) this.queue(() => G.meta.awaySummary?.(got, awayH));
   }

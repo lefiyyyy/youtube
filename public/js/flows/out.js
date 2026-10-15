@@ -28,13 +28,15 @@ const fade = async (title, sub) => {
 };
 const hearts = (v) => `<span class="hearts">${[0, 1, 2, 3, 4].map((i) => `<i class="${v >= (i + 1) * 2 ? 'f' : v >= i * 2 + 1 ? 'h' : ''}">${ic('heart')}</i>`).join('')}</span>`;
 const say = (t, me) => t.replace('{me}', me);
+// the small hours belong to the previous evening's party night
+const partyNight = (s) => (s.clock.min < 6 * 60 ? s.clock.day - 1 : s.clock.day);
 
 export const Out = {
   // ---------------------------------------------------------------- MAP
   open() {
     const s = G.s, hh = G.game.hour;
     const night = hh >= 19 || hh < 2;
-    const partyDone = s.outings.party === s.clock.day;
+    const partyDone = s.outings.party === partyNight(s);
     const jobDone = s.outings.job === s.clock.day;
     const meetDone = s.outings.meet === s.clock.day;
     const meetLocked = s.fans.vid < 1000;
@@ -72,7 +74,7 @@ export const Out = {
       G.ui.hud.show(false);
       const hh = G.game.hour;
       if (!(hh >= 19 || hh < 2)) G.game.advance(((20 - hh) + 24) % 24, { noNeeds: false });
-      s.outings.party = s.clock.day;
+      s.outings.party = partyNight(s);
       await W.goTo('door');
       W.room.setDoorOpen(true); G.audio.sfx('door');
       const done = await fade('Rooftop Party', 'Downtown · tonight');
@@ -89,7 +91,8 @@ export const Out = {
       // a DJ that just vibes
       v.addNPC('dj', null, { name: 'DJ', gender: 'm', hair: 'buzz', hairColor: '#111', skin: '#8a5634', eyes: '#3b2a20', accent: '#8f7dff', wear: { top: 'tech', bottom: 'joggers', shoes: 'boots', hat: 'headphones', eyes: 'ch_shades', neck: null }, col: { top: '#1b1d2a', bottom: '#1d1f2b' } }, { x: -1.6, z: -v.D / 2 + 0.5, ry: 0, clip: 'dance', block: false });
       W.inputEnabled = true;
-      const st = { vibe: 20, selfies: 0, followers: 0, friends: [], collabs: [], heartsGained: 0, startDay: s.clock.day, spent: 0 };
+      const st = { vibe: 20, selfies: 0, followers: 0, friends: [], collabs: [], heartsGained: 0, spent: 0 };
+      const endAt = (partyNight(s) + 1) * 1440 + 120; // the party wraps up at 2 AM
       const ui = overlay(`<div class="party-ui">
         <div class="pt-top glass"><div class="pt-t"><b>Rooftop Party</b><span class="pt-clock"></span></div>
           <div class="pt-v"><small>${ic('sparkle')}Party vibe</small><div class="bar"><i style="width:20%"></i></div></div>
@@ -106,7 +109,7 @@ export const Out = {
       };
       tick();
       let busy = false, cur = null, ended = false;
-      const spend = (mins) => { G.game.advance(mins / 60); tick(); const hNow = G.game.hour; if ((hNow >= 2 && hNow < 12 && s.clock.day > st.startDay) || s.needs.energy < 6) endParty(true); };
+      const spend = (mins) => { G.game.advance(mins / 60); tick(); if (s.clock.day * 1440 + s.clock.min >= endAt || s.needs.energy < 6) endParty(true); };
       let endParty;
       const finished = new Promise((r) => { endParty = (late) => { if (ended) return; ended = true; r(late); }; });
       const closeCard = () => { card.classList.add('hidden'); cur = null; if (W.shotName === 'pair') W.shot('venue'); };

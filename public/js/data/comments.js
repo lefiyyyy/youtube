@@ -8,14 +8,15 @@ const NAMES_A = ['pixel', 'cozy', 'turbo', 'glitch', 'mochi', 'neon', 'lofi', 's
 const NAMES_B = ['Panda', 'Fox', 'Wizard', 'Bean', 'Toast', 'Duck', 'Ninja', 'Otter', 'Pilot', 'Frog', 'Dino', 'Taco', 'Cat', 'Comet', 'Noodle'];
 export const commenter = () => NAMES_A[Math.floor(Math.random() * NAMES_A.length)] + NAMES_B[Math.floor(Math.random() * NAMES_B.length)] + (Math.random() < 0.4 ? Math.floor(Math.random() * 99) : '');
 
-export function makeComment({ quality = 0.7, trust = 1, game = 'this game', name = 'you', views = 0, type = 'gameplay', edit = 'clean' }) {
+export function makeComment({ quality = 0.7, trust = 1, game = 'this game', name = 'you', views = 0, type = 'gameplay', edit = 'clean', mic = 0 }) {
   const r = Math.random();
   let pool = MID;
   if (r < 0.12 + (1 - trust) * 0.5 + (quality < 0.55 ? 0.15 : 0)) pool = NEG;
   else if (r < 0.7) pool = type === 'funny' && Math.random() < 0.4 ? FUNNY : edit === 'pro' && Math.random() < 0.35 ? PRO : POS;
+  if (pool === NEG && mic >= 2) pool = NEG.filter((x) => !/mic|audio/.test(x)); // nobody complains about a good mic
   const t = pool[Math.floor(Math.random() * pool.length)];
   return {
-    user: commenter(), neg: pool === NEG,
+    user: commenter(), neg: NEG.includes(t),
     text: t.replace('{g}', game).replace('{n}', name).replace('{v}', views < 1000 ? String(views) : Math.round(views / 1000) + 'K').replace('{y}', String(2026)),
     likes: Math.floor(Math.random() * Math.max(3, views * 0.002)),
   };

@@ -1352,3 +1352,13 @@ input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 
 @media (pointer: coarse) {
   .jb-ing kbd { display: none; }
 }
+
+/* narrow windows (tablets, portrait): keep the latest-upload card above the dock instead of under it */
+@media (max-width: 1040px) and (min-height: 431px) { .latest { bottom: 86px; } }
+@media (max-width: 860px) and (min-height: 431px) { .latest { bottom: 70px; } }
+/* recording viewfinder: REC + timer sit at the bottom so they never cover the game's own score / speed readouts */
+.rec-card .vf-hud .rec, .rec-card .vf-hud .vf-timer { top: auto; bottom: 10px; }
+/* tall windows: the recording card spans the bottom instead of squeezing in beside the desk */
+@media (max-aspect-ratio: 4/5) {
+  .rec-card { left: 4vw; right: 4vw; width: auto; top: auto; bottom: 4vh; transform: none; animation: modalIn 0.35s ease-out; }
+}

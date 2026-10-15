@@ -41,6 +41,7 @@ export function modal({ title, sub, icon = 'star', iconBg, body, size = '', foot
     el: wrap, body: mb, closed: false,
     close(silent) {
       if (m.closed) return; m.closed = true;
+      wrap.style.pointerEvents = 'none'; wrap.inert = true; // a fast double click can't fire a handler twice
       wrap.classList.add('out');
       setTimeout(() => wrap.remove(), 200);
       const i = modalStack.indexOf(m); if (i >= 0) modalStack.splice(i, 1);
@@ -253,11 +254,12 @@ export class HUD {
     r.sparks.textContent = fmt(this.disp.sparks);
     this.odo.set(this.disp.fans);
     r.views.textContent = fmt(this.disp.views);
-    // subscriber rate over the last ~20 real seconds, shown per real minute
+    // subscribers flowing in from uploads over the last ~20 real seconds, per real minute
+    // (one-off rewards like a premiere payout or a stream summary don't count)
     this.rateT = (this.rateT || 0) + dt;
     if (this.rateT > 1) {
       this.rateT = 0;
-      this.rateHist.push([performance.now(), s.fans.vid]);
+      this.rateHist.push([performance.now(), G.game.accSubs || 0]);
       if (this.rateHist.length > 20) this.rateHist.shift();
       const a = this.rateHist[0], b = this.rateHist[this.rateHist.length - 1];
       const per = b[0] - a[0] > 4000 ? ((b[1] - a[1]) / (b[0] - a[0])) * 60000 : 0;

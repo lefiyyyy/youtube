@@ -44,7 +44,10 @@ export const Social = {
       const screen = $('.screen', wrap);
       const self = this;
       this.ctx = { wrap, screen, close };
+      let closed = false;
       function close() {
+        if (closed) return; closed = true;
+        wrap.style.pointerEvents = 'none'; wrap.inert = true;
         wrap.classList.add('out');
         setTimeout(() => wrap.remove(), 200);
         W.char.showProp(null);
@@ -54,7 +57,7 @@ export const Social = {
         G.audio.sfx('close');
         self.ctx = null;
         resolve();
-        if (self.after) { const f = self.after; self.after = null; setTimeout(f, 50); }
+        if (self.after) { const f = self.after; self.after = null; G.game.queue(f); }
       }
       wrap.addEventListener('pointerdown', (e) => { if (e.target === wrap) close(); });
       G.audio.sfx('open');
@@ -77,7 +80,7 @@ export const Social = {
       <div style="margin-top:auto;padding:12px;display:flex;justify-content:center"><button class="btn ghost small" data-a="close">${ic('close')}Close</button></div>`;
     bind(sc, {
       app: (b) => this.app(b.dataset.id),
-      close: () => this.ctx.close(),
+      close: () => this.ctx?.close(),
     });
   },
   app(id) {
@@ -148,9 +151,15 @@ export const Social = {
     return pick(T[type] || T.update);
   },
   async post(plat, type) {
-    const s = G.s, W = G.world, sc = this.ctx.screen;
-    const t = POST_TYPES[type];
-    if (s.needs.energy < 3) { G.audio.sfx('error'); toast('Too tired to post', { icon: 'bolt', color: 'var(--red)' }); return; }
+    if (this.posting || !this.ctx) return;
+    if (G.s.needs.energy < 3) { G.audio.sfx('error'); toast('Too tired to post', { icon: 'bolt', color: 'var(--red)' }); return; }
+    const sc = this.ctx.screen;
+    this.posting = true; sc.style.pointerEvents = 'none';
+    try { await this.doPost(plat, type, sc); } finally { this.posting = false; sc.style.pointerEvents = ''; }
+  },
+  async doPost(plat, type, sc) {
+    const s = G.s, W = G.world;
+    const alive = () => this.ctx && this.ctx.screen === sc;
     // image
     let img = null;
     if (type === 'selfie' || type === 'outfit') {
@@ -163,6 +172,7 @@ export const Social = {
       x.globalAlpha = 0.25; for (let i = 0; i < 8; i++) { x.fillStyle = '#fff'; x.beginPath(); x.arc(Math.random() * 320, Math.random() * 320, 10 + Math.random() * 40, 0, 7); x.fill(); } x.globalAlpha = 1;
       x.drawImage(portrait(type === 'outfit' ? 'cool' : 'happy'), -10, 10, 340, 340);
       img = c; await sleep(300);
+      if (!alive()) return;
       W.char.showProp('phone'); W.char.play(W.charMode === 'sit' ? 'sitPhone' : 'phone');
     } else if (type === 'clip') {
       s.clips = Math.max(0, s.clips - 1);
@@ -181,6 +191,7 @@ export const Social = {
       for (let i = 0; i < 9; i++) { x.fillStyle = ['#ff6b6b', '#4caf50', '#ffd166'][i % 3]; x.beginPath(); x.arc(110 + Math.random() * 100, 100 + Math.random() * 40, 9, 0, 7); x.fill(); }
       img = c;
     } else { G.audio.sfx('type'); }
+    if (!alive()) return; // phone closed mid-post: nothing is charged
     const out = socialOutcome(s, type, s.socialFatigue || 0);
     const ev = G.game.currentEvent();
     out.followers = Math.round(out.followers * (ev.fx.followMult || 1));
@@ -294,7 +305,7 @@ export const Social = {
         if (!G.game.spend(f.price + 3)) return;
         toast(`Order placed: <b>${f.name}</b>`, { icon: 'bag', color: '#ff9f43', sub: 'Arriving soon...' });
         this.after = () => G.life.delivery(f);
-        this.ctx.close();
+        this.ctx?.close();
       },
     });
   },
@@ -307,8 +318,8 @@ export const Social = {
         <div class="row" style="margin-top:8px">${own ? `<span class="chip good">${ic('check')}You live here</span>` : owned ? `<button class="btn cyan small grow" data-a="move" data-id="${hm.id}">${ic('home')}Move back</button>` : locked ? `<span class="chip">${ic('lock')}Level ${hm.level}</span>` : `<button class="btn amber small grow" data-a="buy" data-id="${hm.id}">${ic('home')}Buy ${fmtMoney(hm.price)}</button>`}</div></div>`; }).join('')}</div>`;
     bind(sc, {
       back: () => this.home(),
-      buy: (b) => { const hm = HOMES[+b.dataset.id]; if (!G.game.spend(hm.price)) return; s.homes.push(hm.id); this.after = () => G.life.moveHome(hm.id, true); this.ctx.close(); },
-      move: (b) => { this.after = () => G.life.moveHome(+b.dataset.id, false); this.ctx.close(); },
+      buy: (b) => { const hm = HOMES[+b.dataset.id]; if (!G.game.spend(hm.price)) return; s.homes.push(hm.id); this.after = () => G.life.moveHome(hm.id, true); this.ctx?.close(); },
+      move: (b) => { this.after = () => G.life.moveHome(+b.dataset.id, false); this.ctx?.close(); },
     });
   },
 };
