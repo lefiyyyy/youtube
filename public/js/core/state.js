@@ -2,6 +2,7 @@
 import { GEAR } from '../data/gear.js';
 import { wearOf, DEFAULT_WEAR } from '../data/clothes.js';
 import { now } from './util.js';
+import { SDK } from '../sdk.js';
 
 const KEY = 'streamer-rise-save-v1';
 export const SAVE_VERSION = 1;
@@ -85,22 +86,24 @@ function migrate(d) {
   for (const k of Object.keys(base.stats)) if (d.stats[k] === undefined) d.stats[k] = base.stats[k];
   for (const k of Object.keys(base.profile)) if (d.profile[k] === undefined) d.profile[k] = base.profile[k];
   for (const k of Object.keys(base.settings)) if (d.settings[k] === undefined) d.settings[k] = base.settings[k];
+  // a premiere that was open when the game closed: let the video keep earning in the background
+  for (const v of d.videos || []) delete v.live;
   d.v = SAVE_VERSION;
   return d;
 }
 
 export function load() {
   try {
-    if (new URLSearchParams(location.search).has('fresh')) { localStorage.removeItem(KEY); }
+    if (new URLSearchParams(location.search).has('fresh')) { localStorage.removeItem(KEY); SDK.removeItem(KEY); }
   } catch {}
-  let raw = null;
-  try { raw = localStorage.getItem(KEY); } catch {}
-  try {
-    const sdkData = window.CrazyGames?.SDK?.data;
-    if (!raw && sdkData) raw = sdkData.getItem(KEY);
-  } catch {}
-  if (raw) {
-    try { S.state = migrate(JSON.parse(raw)); return true; } catch (e) { console.warn('Save corrupted, starting fresh', e); }
+  // local save and (on CrazyGames) the cloud-synced copy: keep whichever was played last
+  const parse = (raw) => { try { return raw ? JSON.parse(raw) : null; } catch { return null; } };
+  let a = null, b = null;
+  try { a = parse(localStorage.getItem(KEY)); } catch {}
+  b = parse(SDK.getItem(KEY));
+  const d = a && b ? ((b.lastPlayed || 0) > (a.lastPlayed || 0) ? b : a) : a || b;
+  if (d) {
+    try { S.state = migrate(d); return true; } catch (e) { console.warn('Save corrupted, starting fresh', e); }
   }
   S.state = freshState();
   return false;
@@ -114,10 +117,10 @@ export function save(force = false) {
   S.state.lastPlayed = now();
   const json = JSON.stringify(S.state);
   try { localStorage.setItem(KEY, json); } catch {}
-  try { window.CrazyGames?.SDK?.data?.setItem(KEY, json); } catch {}
+  SDK.setItem(KEY, json, force);
 }
 export function wipe() {
   try { localStorage.removeItem(KEY); } catch {}
-  try { window.CrazyGames?.SDK?.data?.removeItem(KEY); } catch {}
+  try { SDK.removeItem(KEY); } catch {}
   S.state = freshState();
 }

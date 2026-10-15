@@ -5,6 +5,7 @@ import { bus } from '../core/bus.js';
 import { fmt, fmtMoney, clamp, sleep, isTouch } from '../core/util.js';
 import { careerTitle, xpForLevel } from '../data/progression.js';
 import { totalFans } from '../game/economy.js';
+import { viewRate } from '../game/videos.js';
 
 export const $ = (sel, root = document) => root.querySelector(sel);
 export const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
@@ -252,17 +253,18 @@ export class HUD {
     r.sparks.textContent = fmt(this.disp.sparks);
     this.odo.set(this.disp.fans);
     r.views.textContent = fmt(this.disp.views);
-    // subscriber rate over the last ~10 real seconds (shown as per in-game hour)
+    // subscriber rate over the last ~20 real seconds, shown per real minute
     this.rateT = (this.rateT || 0) + dt;
     if (this.rateT > 1) {
       this.rateT = 0;
-      this.rateHist.push([s.clock.day * 1440 + s.clock.min, s.fans.vid]);
-      if (this.rateHist.length > 12) this.rateHist.shift();
+      this.rateHist.push([performance.now(), s.fans.vid]);
+      if (this.rateHist.length > 20) this.rateHist.shift();
       const a = this.rateHist[0], b = this.rateHist[this.rateHist.length - 1];
-      const per = b[0] > a[0] ? ((b[1] - a[1]) / (b[0] - a[0])) * 60 : 0;
-      r.rate.innerHTML = per >= 1 ? `<span class="up">${ic('trend')}+${fmt(per)}/h</span>` : '';
+      const per = b[0] - a[0] > 4000 ? ((b[1] - a[1]) / (b[0] - a[0])) * 60000 : 0;
+      r.rate.innerHTML = per >= 1 ? `<span class="up" title="New subscribers per minute">${ic('users')}+${fmt(per)}/min</span>` : '';
       this.updateLatest();
     }
+    this.tickLatest(k);
     const need = (el, v) => { el.style.setProperty('--v', Math.round(v) + '%'); el.querySelector('.nv').textContent = Math.round(v); el.classList.toggle('low', v < 25); };
     need(r.hunger, s.needs.hunger); need(r.energy, s.needs.energy);
     const lvl = s.level, need2 = xpForLevel(lvl);
@@ -278,18 +280,29 @@ export class HUD {
     const night = hh >= 19 || hh < 6;
     if (this._night !== night) { this._night = night; r.clockI.innerHTML = ic(night ? 'moon' : 'sun'); r.clockI.classList.toggle('night', night); }
   }
+  // once a second: which video, thumbnail, live badge and views/min
   updateLatest() {
     const s = G.s, r = this.refs, v = s.videos[0];
-    if (!v) { r.latest.classList.add('hidden'); return; }
+    if (!v) { r.latest.classList.add('hidden'); this._lt = null; return; }
     r.latest.classList.remove('hidden');
-    if (r.ltImg.dataset.id !== v.id) { r.ltImg.dataset.id = v.id; if (v.thumb) r.ltImg.src = v.thumb; r.ltT.textContent = v.title; }
-    r.ltV.textContent = fmt(v.views);
-    r.ltL.textContent = fmt(v.likes);
+    if (r.ltImg.dataset.id !== v.id) {
+      r.ltImg.dataset.id = v.id; if (v.thumb) r.ltImg.src = v.thumb; r.ltT.textContent = v.title;
+      this._lt = { id: v.id, v: v.views, l: v.likes };
+    }
     const growing = v.V !== undefined && v.views < v.V * 0.995;
     r.ltLive.style.display = growing ? '' : 'none';
-    const prev = this._ltPrev || 0;
-    this._ltPrev = v.views;
-    r.ltUp.innerHTML = growing && v.views > prev && prev ? `<span class="up">${ic('trend')}+${fmt(v.views - prev)}</span>` : '';
+    const per = growing ? viewRate(v) : 0;
+    r.ltUp.innerHTML = per >= 1 ? `<span class="up">${ic('trend')}+${fmt(per)}/min</span>` : '';
+  }
+  // every frame: ease the counters towards the real totals so views tick up smoothly
+  tickLatest(k) {
+    const v = G.s.videos[0], d = this._lt;
+    if (!v || !d || d.id !== v.id) return;
+    const ease = (a, b) => (Math.abs(b - a) < 1 ? b : a + (b - a) * k);
+    d.v = ease(d.v, v.views); d.l = ease(d.l, v.likes);
+    const vs = fmt(Math.floor(d.v)), ls = fmt(Math.floor(d.l));
+    if (this.refs.ltV.textContent !== vs) this.refs.ltV.textContent = vs;
+    if (this.refs.ltL.textContent !== ls) this.refs.ltL.textContent = ls;
   }
 }
 
@@ -314,7 +327,7 @@ export class Labels {
   bubble(obj, html, cls = '') {
     const w = G.world;
     const p = w.toScreen(w.objTop(obj, 0.15));
-    const x = clamp(p.x, 110, innerWidth - 110), y = clamp(p.y, 70, innerHeight - 40);
+    const x = clamp(p.x, 110, innerWidth - 110), y = clamp(p.y, 170, innerHeight - 40); // stay clear of the top HUD
     const e = h(`<div class="wbubble glass ${cls}" style="left:${x}px;top:${y}px">${html}</div>`);
     this.el.appendChild(e);
     setTimeout(() => e.remove(), 2500);

@@ -20,7 +20,7 @@ import { gameCover, drawGame } from '../world/screens.js';
 import { videoOutcome, setupStats, totalFans } from '../game/economy.js';
 import { hasFeature } from '../data/progression.js';
 import { makeThumb, smallJpeg, npcPortrait } from './thumbs.js';
-import { makeVideo, step, gradeOf, PREMIERE_MIN } from '../game/videos.js';
+import { makeVideo, step, gradeOf } from '../game/videos.js';
 import { makeComment } from '../data/comments.js';
 import { USER_COLORS } from '../data/chat.js';
 import { emotify } from '../ui/icons.js';
@@ -441,7 +441,7 @@ export const Create = {
   },
 
 
-  // ---------------------------------------------------------------- PREMIERE (live results time-lapse)
+  // ---------------------------------------------------------------- PREMIERE (live, real time)
   async premiere(out, ctx) {
     const s = G.s, W = G.world;
     const { game, content, pub, sponsor, partner, ed } = ctx;
@@ -450,7 +450,7 @@ export const Create = {
     W.shot('deskWide');
     W.char.play('sitTalk', { restart: true });
     W.char.setExpression('happy', 3);
-    // persistent live record — the premiere shows its first hours, then it keeps growing in the background
+    // persistent live record — the premiere shows its first moments live, then it keeps growing in the background
     const vid = makeVideo(s, {
       id: uid(), title: pub.title.text, game: game.id, type: content.id, thumb: smallJpeg(pub.canvas), tags: pub.tags,
       perf: Math.round(ctx.perf * 100), grade: pub.grade, out,
@@ -481,7 +481,7 @@ export const Create = {
         <div class="pm-comments"></div>
         <div class="row" style="justify-content:flex-end;gap:10px;margin-top:10px">
           ${spPay ? `<span class="chip good grow" style="justify-content:flex-start">${ic('handshake')}${esc(sponsor.brand)} +${fmtMoney(spPay)}</span>` : ''}
-          <button class="btn ghost small" data-a="ff">${ic('chevron')}Skip</button><button class="btn go big" data-a="ok" disabled>${ic('check')}Continue</button></div>
+          <button class="btn go big" data-a="ok" disabled>${ic('check')}Continue</button></div>
       </div></div>`);
     const tc = pub.canvas; tc.style.width = '100%';
     $('.pm-thumb', el).appendChild(tc);
@@ -491,16 +491,17 @@ export const Create = {
     const chart = $('.pm-chart', el), cx = chart.getContext('2d');
     const comBox = $('.pm-comments', el), ldL = $('.ld-bar .l', el), ldD = $('.ld-bar .d', el);
     const pts = [[0, 0]];
-    let ff = false, fanBank = 0;
+    let fanBank = 0;
     const tot = { subs: 0, money: 0, likes: 0, dislikes: 0, comments: 0 };
-    const drawChart = () => {
+    const drawChart = (sec = 0) => {
       const w = chart.width, hh = chart.height;
       cx.clearRect(0, 0, w, hh);
       cx.strokeStyle = 'rgba(255,255,255,0.07)'; cx.lineWidth = 1;
       for (let i = 1; i < 4; i++) { cx.beginPath(); cx.moveTo(0, (hh / 4) * i); cx.lineTo(w, (hh / 4) * i); cx.stroke(); }
       if (pts.length < 2) return;
-      const mx = Math.max(10, out.views * 0.5, ...pts.map((p) => p[1]));
-      const X = (t) => (t / PREMIERE_MIN) * (w - 8) + 4, Y = (v) => hh - 6 - (v / mx) * (hh - 16);
+      const span = Math.max(15, sec * 1.08); // the line fills the chart as the premiere runs
+      const mx = Math.max(10, ...pts.map((p) => p[1])) * 1.15;
+      const X = (t) => (t / span) * (w - 8) + 4, Y = (v) => hh - 6 - (v / mx) * (hh - 16);
       const g = cx.createLinearGradient(0, 0, 0, hh); g.addColorStop(0, 'rgba(255,90,95,0.42)'); g.addColorStop(1, 'rgba(255,90,95,0)');
       cx.fillStyle = g; cx.beginPath(); cx.moveTo(X(pts[0][0]), hh); pts.forEach((p) => cx.lineTo(X(p[0]), Y(p[1]))); cx.lineTo(X(pts[pts.length - 1][0]), hh); cx.fill();
       cx.strokeStyle = '#ff5a5f'; cx.lineWidth = 3; cx.lineJoin = 'round'; cx.beginPath(); pts.forEach((p, i) => (i ? cx.lineTo(X(p[0]), Y(p[1])) : cx.moveTo(X(p[0]), Y(p[1])))); cx.stroke();
@@ -512,65 +513,61 @@ export const Create = {
       comBox.prepend(row);
       while (comBox.children.length > 4) comBox.lastElementChild.remove();
     };
-    G.tutorial?.onResults?.(el);
-    bind(el, { ff: () => { ff = true; }, ok: () => {} });
-    // time-lapse: 3 in-game hours over ~7 seconds
-    const D = 7000;
-    let tLast = 0, comT = 0, wasViral = false;
-    await new Promise((r) => {
-      const t0 = performance.now();
-      const f = (now) => {
-        const k = ff ? 1 : clamp((now - t0) / D, 0, 1);
-        const tm = k * PREMIERE_MIN;
-        const d = step(vid, vid.t0 + tm);
-        if (d) {
-          for (const key of Object.keys(tot)) tot[key] += d[key];
-          fanBank += d.subs;
-          if (d.money) G.game.addMoney(d.money);
-        }
-        if (tm - tLast > 4 || k >= 1) { pts.push([tm, vid.views]); tLast = tm; drawChart(); }
-        viewsEl.textContent = fmtInt(vid.views);
-        W.screens.data.views = vid.views;
-        clockEl.textContent = `${Math.floor(tm / 60)}:${String(Math.floor(tm % 60)).padStart(2, '0')}h`;
-        statEl('subs').textContent = '+' + fmt(tot.subs);
-        statEl('money').textContent = fmtMoney(tot.money + (spPay && k >= 1 ? spPay : 0));
-        statEl('likes').textContent = fmt(tot.likes);
-        statEl('comments').textContent = fmt(tot.comments);
-        const lt = Math.max(1, tot.likes + tot.dislikes);
-        ldL.style.width = (tot.likes / lt) * 100 + '%'; ldD.style.width = (tot.dislikes / lt) * 100 + '%';
-        comT -= 1;
-        if (comT <= 0 && tot.comments > 0 && !ff) { addComment(); comT = 26 + Math.random() * 30; if (Math.random() < 0.4) G.audio.sfx('chat', 2); }
-        if (out.viral && !wasViral && k > 0.45) {
-          wasViral = true;
-          const vb = h('<div class="viral-burst"><div class="vb">VIRAL!</div></div>');
-          $('#fx').appendChild(vb); setTimeout(() => vb.remove(), 1900);
-          G.audio.sfx('viral'); W.addShake(1); flash(); G.sdk?.happy();
-          W.vfx.confetti(W.room.st.monitor.clone(), 160, 3);
-          W.char.play('sitWin', { restart: true });
-        }
-        if (k < 1) requestAnimationFrame(f); else r();
-      };
-      requestAnimationFrame(f);
-    });
-    // close the gap so the background accrual continues seamlessly from here
-    vid.t0 -= PREMIERE_MIN;
-    if (!comBox.children.length) addComment();
-    // insights reveal
-    const box = $('.insights', el);
-    for (const [k, i2, txt] of out.insights) { box.appendChild(h(`<span class="chip ${k}">${ic(i2)}${txt}</span>`)); }
-    G.audio.sfx('pop');
-    const great = ctx.perf > 0.8 || out.viral;
-    W.char.play(great ? 'sitWin' : ctx.perf > 0.5 ? 'sitTalk' : 'sitFail', { restart: true });
-    W.char.setExpression(great ? 'happy' : ctx.perf > 0.5 ? 'happy' : 'sad', 3);
-    if (great && !out.viral) { G.audio.sfx('reward'); W.vfx.confetti(W.room.st.monitor.clone(), 70, 2.2); }
-    $('.pm-head .live-dot', el).classList.add('off');
-    $('.pm-head b', el).textContent = 'LIVE ON VIDORA';
-    statEl('money').textContent = fmtMoney(tot.money + spPay);
+    // live: views, likes and subs arrive in real time while you watch; Continue whenever you like
+    vid.live = true;
     const okBtn = $('[data-a=ok]', el);
-    okBtn.disabled = false; okBtn.classList.add('shine');
-    $('[data-a=ff]', el).remove();
-    G.tutorial?.onResults?.(el);
-    await new Promise((r) => bind(el, { ok: r }));
+    let tLast = -1, comT = 2.5, wasViral = false, revealed = false, done = false;
+    const t0 = performance.now();
+    const great = ctx.perf > 0.8 || out.viral;
+    const reveal = () => {
+      if (revealed) return; revealed = true;
+      if (!comBox.children.length && tot.comments > 0) addComment();
+      const box = $('.insights', el);
+      for (const [k, i2, txt] of out.insights) box.appendChild(h(`<span class="chip ${k}">${ic(i2)}${txt}</span>`));
+      G.audio.sfx('pop');
+      W.char.play(great ? 'sitWin' : ctx.perf > 0.5 ? 'sitTalk' : 'sitFail', { restart: true });
+      W.char.setExpression(great ? 'happy' : ctx.perf > 0.5 ? 'happy' : 'sad', 3);
+      if (great && !out.viral) { G.audio.sfx('reward'); W.vfx.confetti(W.room.st.monitor.clone(), 70, 2.2); }
+      okBtn.disabled = false; okBtn.classList.add('shine');
+      G.tutorial?.onResults?.(el);
+    };
+    const f = (now) => {
+      if (done) return;
+      const sec = (now - t0) / 1000;
+      const d = step(vid, Date.now());
+      if (d) {
+        for (const key of Object.keys(tot)) tot[key] += d[key];
+        fanBank += d.subs;
+        if (d.money) G.game.addMoney(d.money);
+      }
+      if (sec - tLast >= 0.5) { pts.push([sec, vid.views]); tLast = sec; drawChart(sec); }
+      viewsEl.textContent = fmtInt(vid.views);
+      W.screens.data.views = vid.views;
+      clockEl.textContent = `${Math.floor(sec / 60)}:${String(Math.floor(sec % 60)).padStart(2, '0')}`;
+      statEl('subs').textContent = '+' + fmt(tot.subs);
+      statEl('money').textContent = fmtMoney(tot.money + spPay);
+      statEl('likes').textContent = fmt(tot.likes);
+      statEl('comments').textContent = fmt(tot.comments);
+      const lt = Math.max(1, tot.likes + tot.dislikes);
+      ldL.style.width = (tot.likes / lt) * 100 + '%'; ldD.style.width = (tot.dislikes / lt) * 100 + '%';
+      if (sec > comT && tot.comments > comBox.children.length) { addComment(); comT = sec + 2.5 + Math.random() * 4; if (Math.random() < 0.5) G.audio.sfx('chat', 2); }
+      if (out.viral && !wasViral && sec > 6) {
+        wasViral = true;
+        const vb = h('<div class="viral-burst"><div class="vb">VIRAL!</div></div>');
+        $('#fx').appendChild(vb); setTimeout(() => vb.remove(), 1900);
+        G.audio.sfx('viral'); W.addShake(1); flash(); G.sdk?.happy();
+        W.vfx.confetti(W.room.st.monitor.clone(), 160, 3);
+        W.char.play('sitWin', { restart: true });
+      }
+      if (sec > 4.5) reveal();
+      requestAnimationFrame(f);
+    };
+    requestAnimationFrame(f);
+    await new Promise((r) => bind(el, { ok: () => { if (revealed) r(); } }));
+    done = true;
+    const dl = step(vid, Date.now());
+    if (dl) { for (const key of Object.keys(tot)) tot[key] += dl[key]; fanBank += dl.subs; if (dl.money) G.game.addMoney(dl.money); }
+    delete vid.live;
     const from = okBtn.getBoundingClientRect();
     const fp = { x: from.left + from.width / 2, y: from.top };
     if (fanBank > 0) G.game.addFans('vid', fanBank, fp);

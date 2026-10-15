@@ -20,12 +20,17 @@ import { SDK } from './sdk.js';
 import { sleep, dayIndex } from './core/util.js';
 import { eventForDay, EVENTS } from './data/events.js';
 
+// Embedded in a portal iframe: never scroll the host page with keys, no browser context menu over the game.
+const NOSCROLL = new Set(['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'PageUp', 'PageDown']);
+addEventListener('keydown', (e) => { if (NOSCROLL.has(e.code) && !/^(INPUT|TEXTAREA|SELECT)$/.test(e.target?.tagName || '')) e.preventDefault(); });
+addEventListener('contextmenu', (e) => e.preventDefault());
+
 const bar = (p) => { const b = document.getElementById('loadbar'); if (b) b.style.width = p * 100 + '%'; };
 
 async function boot() {
   bar(0.1);
-  const sdkP = SDK.init();
   injectIcons();
+  await SDK.init(); // before load(): saves may live in the SDK's cloud-synced storage
   const hadSave = load();
   const s = S.state;
   bar(0.25);
@@ -49,9 +54,14 @@ async function boot() {
   audio.vol = { music: s.settings.music, sfx: s.settings.sfx };
   G.audio = audio;
   let platformMuted = false;
-  const applyVol = () => audio.setVolumes(platformMuted ? 0 : s.settings.music, platformMuted ? 0 : s.settings.sfx);
-  const unlock = () => { audio.unlock(); applyVol(); };
-  sdkP.then(() => SDK.onMute((m) => { platformMuted = m; applyVol(); }));
+  const unlock = () => { if (SDK.inAd) return; audio.unlock(); applyAll(); };
+  let adMuted = false;
+  const applyAll = () => audio.setVolumes(platformMuted || adMuted ? 0 : s.settings.music, platformMuted || adMuted ? 0 : s.settings.sfx);
+  G.applyVol = applyAll;
+  SDK.onMute((m) => { platformMuted = m; applyAll(); });
+  // ads: mute and freeze the game while one plays
+  SDK.onAdStart = () => { adMuted = true; applyAll(); audio.ctx?.suspend(); };
+  SDK.onAdEnd = () => { adMuted = false; applyAll(); if (!document.hidden) audio.ctx?.resume(); };
   addEventListener('pointerdown', unlock, { capture: true });
   addEventListener('keydown', unlock, { capture: true });
   // systems
@@ -63,10 +73,12 @@ async function boot() {
   bus.on('world:pick', (id) => G.game.onPick(id));
   bus.on('world:floor', (p) => G.game.onFloor(p));
   bus.on('sfx', (n) => audio.sfx(n));
+  // natural breaks for the platform's midgame ads (shown when the flow closes, never mid-activity)
+  bus.on('video:done', () => (G.game.adBreak = true));
+  bus.on('stream:done', () => (G.game.adBreak = true));
   world.applyTime(G.game.hour, true);
   world.powerOff();
   bar(0.9);
-  await sdkP;
   SDK.loadingStop();
   // first frame
   world.update(0.016); world.render();
@@ -77,13 +89,14 @@ async function boot() {
   const loop = (t) => {
     const dt = Math.min(0.1, (t - last) / 1000); last = t;
     if (window.__pauseRender) { requestAnimationFrame(loop); return; }
-    if (!world.paused) world.update(dt);
+    const frozen = world.paused || SDK.inAd;
+    if (!frozen) world.update(dt);
     G.game.update(dt);
     G.ui.hud.update(dt);
     G.ui.labels.update();
-    if (!world.paused) world.render();
+    if (!frozen && !window.__noRender) world.render();
     // adaptive quality on 'auto': step down if the device struggles
-    if (s.settings.quality === 'auto' && !qp && perf.checks < 3 && !document.hidden && !world.paused) {
+    if (s.settings.quality === 'auto' && !qp && perf.checks < 3 && !document.hidden && !frozen) {
       perf.frames++; perf.time += (t - (perf.lastT || t)) / 1000; perf.lastT = t;
       if (perf.time > 6) {
         const fps = perf.frames / perf.time;
@@ -120,6 +133,9 @@ async function boot() {
   G.ui.hud.show(true);
   G.ui.hud.setPortrait();
   Tutorial.start();
+  // views earned while away (real time), then start live accrual
+  if (hadSave) G.game.offline(Math.max(0, (Date.now() - (s.lastPlayed || Date.now())) / 3600000));
+  else G.game.started = true;
   if (!Tutorial.active) {
     G.game.refreshObjective();
     const cur = eventForDay(dayIndex());
@@ -128,12 +144,11 @@ async function boot() {
       toast(`<b>${EVENTS[cur.id].name}</b> is live! Your reminder`, { icon: 'calendar', color: EVENTS[cur.id].colors[0], dur: 4500 });
     }
     if (Meta.dailyAvailable()) setTimeout(() => Meta.daily(true), 500);
-    if (hadSave) {
-      const awayH = Math.max(0, (Date.now() - (s.lastPlayed || Date.now())) / 3600000);
-      if (awayH > 0.05) G.game.offline(awayH);
-    }
   }
-  addEventListener('visibilitychange', () => { if (document.hidden) { save(true); SDK.gameplayStop(); audio.ctx?.suspend(); } else { SDK.gameplayStart(); audio.ctx?.resume(); } });
+  addEventListener('visibilitychange', () => {
+    if (document.hidden) { save(true); SDK.hold('hidden'); audio.ctx?.suspend(); }
+    else { SDK.release('hidden'); if (!SDK.inAd) audio.ctx?.resume(); }
+  });
   addEventListener('pagehide', () => save(true));
   addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return;

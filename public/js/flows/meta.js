@@ -138,6 +138,7 @@ export const Meta = {
     return new Promise((res) => {
       const W = G.world;
       G.audio.sfx('viral');
+      G.sdk?.happy();
       W.vfx.confetti(W.char.root.position.clone().add(new THREE.Vector3(0, 1.6, 0)), 220, 3.2);
       const body = h(`<div class="lvlup"><div class="burst"></div>
         <div class="ln" style="background:radial-gradient(circle at 35% 30%,#fff,${m.plaque || '#ffcf4a'} 55%,#00000055);font-size:44px;color:#1a1830">${ic('vidora')}</div>
@@ -488,8 +489,9 @@ export const Meta = {
       <div class="set-row"><div class="sl">${ic('full')}Fullscreen</div><button class="btn ghost small" data-a="fs">${document.fullscreenElement ? 'Exit' : 'Enter'}</button></div>
       <div class="set-row"><div class="sl">${ic('undo')}Reset progress</div><button class="btn red small" data-a="reset">Reset</button></div>
       <div class="tiny muted" style="margin-top:12px;font-weight:600;line-height:1.5">${ic('info')} Progress saves automatically. Desktop: click objects in the room, drag to look around, scroll to zoom. Mobile: tap, drag, pinch.</div></div>`);
-    const m = modal({ title: 'Settings', icon: 'gear', iconBg: 'linear-gradient(135deg,#8d8fb0,#4a4d6e)', body, size: 'sm' });
-    $$('input[type=range]', body).forEach((r) => r.addEventListener('input', () => { st[r.dataset.k] = +r.value; G.audio.setVolumes(st.music, st.sfx); }));
+    G.sdk?.hold('menu');
+    const m = modal({ title: 'Settings', icon: 'gear', iconBg: 'linear-gradient(135deg,#8d8fb0,#4a4d6e)', body, size: 'sm', onClose: () => G.sdk?.release('menu') });
+    $$('input[type=range]', body).forEach((r) => r.addEventListener('input', () => { st[r.dataset.k] = +r.value; G.applyVol ? G.applyVol() : G.audio.setVolumes(st.music, st.sfx); }));
     bind(body, {
       q: (b) => { st.quality = b.dataset.k; G.world.setQuality(st.quality); G.world.applyTime(G.game.hour, true); $$('[data-a=q]', body).forEach((x) => x.classList.toggle('on', x === b)); },
       shake: (b) => { st.shake = b.dataset.v === '1'; $$('[data-a=shake]', body).forEach((x) => x.classList.toggle('on', x === b)); },

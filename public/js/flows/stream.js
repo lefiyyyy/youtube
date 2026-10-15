@@ -97,9 +97,17 @@ export const Stream = {
     };
     const followMult = ev.fx.followMult || 1;
     const ctxLines = this.contextLines(game, stt);
-    // ---- chat
+    // ---- chat: a persistent crowd of regulars — small streams have a few people who talk now and then,
+    // big streams have many fast chatters. Active chatters ~ viewers^0.75, ~2 messages per chatter per minute.
+    const crowd = [];
+    const chatters = () => Math.max(1, Math.pow(S2.viewers, 0.75) * 0.75);
+    const crowdUser = () => {
+      const want = Math.max(1, Math.round(chatters()));
+      while (crowd.length < Math.min(want, 60)) crowd.push(randomUser());
+      return crowd[Math.floor(Math.pow(Math.random(), 1.3) * Math.min(crowd.length, want))];
+    };
     const addMsg = (text, opt = {}) => {
-      const user = opt.user || randomUser();
+      const user = opt.user || crowdUser();
       const col = opt.color || USER_COLORS[(user.length * 7 + user.charCodeAt(0)) % USER_COLORS.length];
       const badge = opt.badge === 'sub' ? `<span class="bdg" style="background:var(--violet)">${ic('star')}</span>` : opt.badge === 'mod' ? `<span class="bdg" style="background:var(--lime);color:#123">${ic('hammer')}</span>` : opt.badge === 'vip' ? `<span class="bdg" style="background:var(--pink)">${ic('spark')}</span>` : '';
       const m = h(`<div class="msg ${opt.cls || ''}">${badge}<span class="u" style="color:${col}">${esc(user)}</span>${emotify(esc(text))}${opt.extra || ''}</div>`);
@@ -131,7 +139,14 @@ export const Stream = {
       if (kind === 'wave') { W.char.play('sitWave', { restart: true }); W.char.setExpression('happy', 1.5); W.char.talking = true; setTimeout(() => { W.char.talking = false; if (W.char.clip === 'sitWave') W.char.play('sitGame'); }, 1500); }
       if (kind === 'talk') { W.char.play('sitTalk', { restart: true }); W.char.talking = true; W.char.setExpression('happy', 2.4); setTimeout(() => { W.char.talking = false; if (W.char.clip === 'sitTalk') W.char.play('sitGame'); }, 2400); }
     };
-    const spam = (pool, n, delay = 90) => { for (let i = 0; i < n; i++) setTimeout(() => !S2.ended && addMsg(pick(pool)), i * delay + Math.random() * 60); };
+    // reaction bursts scale with the audience: 5 viewers -> maybe one reply, thousands -> a flood
+    const spam = (pool, n, delay = 90) => {
+      const k = clamp(chatters() / 14, 0.12, 1);
+      let m = Math.floor(n * k + Math.random());
+      if (m < 1 && Math.random() < 0.6) m = 1;
+      const d = delay * (1 + (1 - k) * 4);
+      for (let i = 0; i < m; i++) setTimeout(() => !S2.ended && addMsg(pick(pool)), 300 + i * d + Math.random() * d);
+    };
     const addHype = (v) => { S2.hype = clamp(S2.hype + v, 0, 100); if (S2.hype >= 100 && S2.train <= 0) startTrain(); };
     const startTrain = () => {
       S2.train = 8; S2.events.push('train');
@@ -145,7 +160,7 @@ export const Stream = {
     // ---- donations
     const donation = () => {
       const user = randomUser();
-      const amt = pick([1, 1, 2, 2, 3, 5, 5, 10, 10, 20, Math.random() < 0.3 ? 50 : 5]) * Math.max(1, Math.round(1 + L * 0.12 + S2.viewers * 0.004));
+      const amt = pick([1, 1, 2, 2, 3, 5, 5, 5, 10, 10, 20, Math.random() < 0.25 ? 50 : 5]) * Math.max(1, Math.round(1 + L * 0.08 + S2.viewers * 0.002));
       const msg = pick(LINES.donation);
       S2.donations += amt;
       A.sfx('donation');
@@ -294,9 +309,18 @@ export const Stream = {
         const box = h(`<div class="poll-box glass"><div class="display" style="font-size:17px">${ic('poll')} ${esc(p[0])}</div><div class="poll-opt"><i style="width:0%"></i><span>${esc(p[1])}</span></div><div class="poll-opt"><i style="width:0%"></i><span>${esc(p[2])}</span></div></div>`);
         el.appendChild(box);
         const bars = $$('.poll-opt i', box);
-        let v1 = 1, v2 = 1;
-        const iv = setInterval(() => { const k = Math.random() < 0.55 ? 1 : 2; if (k === 1) v1++; else v2++; addMsg(String(k), {}); bars[0].style.width = (v1 / (v1 + v2)) * 100 + '%'; bars[1].style.width = (v2 / (v1 + v2)) * 100 + '%'; }, 220);
-        setTimeout(() => { clearInterval(iv); box.remove(); sys(`${ic('poll')} Poll: "${esc(v1 >= v2 ? p[1] : p[2])}" wins!`); }, 5500);
+        let v1 = 0, v2 = 0;
+        const votes = Math.max(1, Math.round(Math.min(S2.viewers * 0.6, 4000)));
+        const shown = Math.min(Math.round(chatters() * 1.2), 22);
+        let cast = 0;
+        const iv = setInterval(() => {
+          const step = Math.max(1, Math.round(votes / 24)); cast += step;
+          for (let j = 0; j < step; j++) { if (Math.random() < 0.55) v1++; else v2++; }
+          if (shown > 0 && Math.random() < shown / 24) addMsg(String(Math.random() < 0.55 ? 1 : 2), {});
+          const tv = Math.max(1, v1 + v2);
+          bars[0].style.width = (v1 / tv) * 100 + '%'; bars[1].style.width = (v2 / tv) * 100 + '%';
+        }, 220);
+        setTimeout(() => { clearInterval(iv); box.remove(); sys(`${ic('poll')} Poll: "${esc(v1 >= v2 ? p[1] : p[2])}" wins (${fmt(v1 + v2)} votes)`); }, 5500);
         S2.eng += 1.0; addHype(14);
       } else if (id === 'give') {
         const cost = Math.max(50, Math.round(Math.min(s.money * 0.04, 1500 + s.level * 350) / 10) * 10);
@@ -339,7 +363,7 @@ export const Stream = {
         W.screens.data.viewers = S2.viewers;
         if (W.screens.data.alert) W.screens.data.alert.t -= dt;
         // chat
-        const rate = Math.min(9, 0.9 + Math.pow(S2.viewers, 0.62) * 0.3) * (0.7 + S2.hype / 100) * (S2.train > 0 ? 1.8 : 1);
+        const rate = Math.min(8, (chatters() * 2.1 / 60) * (0.55 + S2.hype / 100 * 0.9) * (S2.train > 0 ? 1.8 : 1) * (t < 8 ? 1.6 : 1));
         chatAcc += rate * dt;
         while (chatAcc >= 1) {
           chatAcc -= 1;
@@ -357,20 +381,26 @@ export const Stream = {
         // random events
         S2.nextEvt -= dt;
         if (S2.nextEvt <= 0 && t < DUR - 4) {
-          S2.nextEvt = rand(3.5, 6.5);
+          S2.nextEvt = rand(4.5, 7.5) * (S2.viewers < 25 ? 1.5 : 1);
           const roll = Math.random();
-          const dChance = clamp(0.35 + S2.viewers * 0.01, 0.35, 0.6);
+          const dChance = clamp(0.05 + S2.viewers * 0.004, 0.05, 0.45);
           if (roll < dChance) donation();
           else if (roll < dChance + 0.12) question();
-          else if (roll < dChance + 0.22) troll();
+          else if (roll < dChance + 0.12 + clamp(S2.viewers * 0.002, 0.02, 0.1)) troll();
           else if (roll < dChance + 0.3 && hasFeature(s, 'raids') && !S2.events.includes('raid') && t > 15) raid();
           else if (roll < dChance + 0.36 && s.gear.net <= 1 && !S2.events.includes('lag')) { S2.events.push('lag'); lag(); }
           else if (roll < dChance + 0.42 && hasCat) catCameo();
-          else clipMoment();
+          else if (S2.viewers > 8 || Math.random() < 0.4) clipMoment();
         }
-        if (Math.random() < Math.min(0.25, S2.viewers * 0.01) * dt * (S2.train > 0 ? 2.5 : 1)) subAlert();
+        // new followers show up in chat as they happen (one by one on small streams)
+        if (Math.floor(S2.followers) > (S2.fShown || 0) && t - (S2.fT || 0) > (S2.viewers < 40 ? 3 : 8)) {
+          const nf = Math.floor(S2.followers) - (S2.fShown || 0);
+          S2.fShown = Math.floor(S2.followers); S2.fT = t;
+          sys(nf > 1 ? `${ic('heart')} ${fmt(nf)} new followers` : `${ic('heart')} ${esc(randomUser())} followed`);
+        }
+        if (Math.random() < Math.min(0.2, S2.viewers * 0.0015) * dt * (S2.train > 0 ? 2.5 : 1)) subAlert();
         S2.subs += S2.viewers * 0.0004 * dt; // quiet memberships on bigger streams
-        if (S2.train > 0 && Math.random() < dt * 1.2) donation();
+        if (S2.train > 0 && Math.random() < dt * clamp(S2.viewers * 0.01, 0.15, 1.2)) donation();
         // UI
         R.vw.textContent = fmt(S2.viewers);
         R.fl.textContent = '+' + fmt(S2.followers);

@@ -48,8 +48,7 @@ try {
   { const q = await page.$('.qte'); if (q) await q.dispatchEvent('pointerdown'); }
   await wait(2500);
   await shot('facecam_reaction');
-  await page.evaluate(() => { document.querySelector('[data-a=end]').style.pointerEvents = 'auto'; });
-  await wait(14000);
+  await page.waitForFunction(() => document.querySelector('[data-a=end]')?.style.opacity === '1', null, { timeout: 180000 });
   await click('[data-a=end]', { wait: 1500 });
   await page.waitForSelector('.summary [data-a=ok]:not([disabled])', { timeout: 60000 });
   await click('.summary [data-a=ok]', { wait: 1500 });

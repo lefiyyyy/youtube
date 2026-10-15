@@ -28,6 +28,7 @@ Any static host works too — just serve the `public/` folder (e.g. upload it as
 | `?q=low\|medium\|high` | Force a graphics preset for this session |
 | `?dayOffset=N` | Pretend it is N days later (tests daily rewards / events) |
 | `?cgsdk` | Force-load the CrazyGames SDK outside crazygames.com |
+| `?crazygames_sandbox=1` | Load the SDK in sandbox mode (test ads) |
 
 ## How to play
 
@@ -42,12 +43,17 @@ Any static host works too — just serve the `public/` folder (e.g. upload it as
     Edit** or **Pro Edit** (more hours & energy, better quality) — and watch the edit happen automatically.
     Pick a thumbnail, a title (Clickbait / Honest / Trendy) and up to 3 **tags** (the trending tag only helps if it
     fits the game), then publish.
-  * **Premiere** — the first hours of the upload play out live: views, likes/dislikes, comments, subscribers and
-    revenue roll in on a real-time chart. Afterwards **every video keeps growing in real time** (a fast first wave,
-    then a long discovery tail): watch the rolling **subscriber counter** and the **latest upload** widget on the HUD,
-    and per-video live stats in the **Creator Studio**.
+  * **Premiere** — the upload goes live in front of you: views, likes/dislikes, comments, subscribers and revenue
+    arrive **in real time** on a live chart (no skipping, no fake fast-forward). Continue whenever you like: every
+    video keeps earning on the wall clock — a first wave from your subscribers in the first couple of minutes, then a
+    discovery tail over the next hour — while you do other things, sleep in-game, or even close the game. Watch the
+    **subscriber counter** (+N/min), the **latest upload** widget (views ticking up, +N views/min) and per-video
+    live stats in the **Creator Studio**.
   * **Go Live** — stream on Pulse: talk to chat, land Big Plays, clip moments, run polls and giveaways, thank
-    donations, ban trolls, welcome raids and ride the hype train.
+    donations, ban trolls, welcome raids and ride the hype train. The chat is modelled on real streams: the number of
+    active chatters grows sub-linearly with viewers and each chatter writes a couple of messages a minute, so a
+    5-viewer stream gets the odd message from the same few regulars while a 5,000-viewer stream scrolls fast.
+    Donations, subs, trolls, polls and hype trains scale with the audience too.
   * **Post Social** — Blip and (level 8+) Lumo posts; Fit Check posts scale with your **style score**.
 * **Shop** — every item has a live 3D preview before you buy it:
   * **Setup**: PC, monitor, camera, microphone, lighting, chair, desk, keyboard & mouse, internet. Buy any unlocked
@@ -85,8 +91,9 @@ Keyboard: `Space` hits the Big Play ring while streaming; `1–5` trigger stream
   community mood (fan inbox), mega productions and creator awards.
 * **Skills & friends**: four creator skills (10 levels each) and relationships with nine NPC influencers.
 
-Saves are automatic (localStorage, mirrored to the CrazyGames data module when available). Returning players
-get a "While you were away" summary of the views, subscribers and revenue their videos earned (capped).
+Saves are automatic (localStorage, plus the CrazyGames data module for cross-device saves when available; the
+newer of the two wins). Returning players get a "While you were away" summary of the views, subscribers and revenue
+their videos earned in real time while the game was closed.
 
 ## Project layout
 
@@ -112,6 +119,31 @@ public/
 tools/                    dev tooling: Playwright playthroughs, screenshots, balance simulator
 ```
 
+## CrazyGames
+
+The game is ready for **Basic Launch** and already wired for Full Launch (`public/js/sdk.js`):
+
+* The SDK v3 script is loaded only when the game runs on CrazyGames (host, embedding page or `?cgsdk`), before the
+  save is read, with timeouts so a blocked script can never hang the loading screen. Elsewhere the game runs offline.
+* `loadingStart` / `loadingStop` around boot; `gameplayStart` once the intro ends and `gameplayStop` /
+  `gameplayStart` (kept balanced) when the tab is hidden, the settings menu is open and during ads.
+* **Midgame ads** only at natural breaks — after a premiere, after a stream summary, after a night's sleep — never
+  during the tutorial, never in the first 2.5 minutes, at most every 3 minutes (the SDK applies its own limits on
+  top). While an ad plays the game is frozen and muted; it resumes on `adFinished` or `adError`.
+* `happytime` on level-ups, milestones and viral videos; the platform **mute** setting is respected live.
+* **Data module**: the save is mirrored (throttled, flushed when the tab is hidden) so logged-in players keep their
+  progress across devices.
+* Embedding hygiene: no page scrolling with Space / arrow keys, no browser context menu, no external links, no
+  network requests besides the SDK. 2 MB total, ~80 files, all assets local.
+
+`node tools/sdktest.mjs` runs the integration against a mock of the SDK and checks the call order, ad pause/mute,
+cooldown, platform mute and data saves.
+
+**Store videos** (no cover image needed, the existing one is used): `node tools/trailer.mjs landscape` and
+`node tools/trailer.mjs portrait` capture real gameplay frame by frame on a fake clock (true game speed, no
+speed-up, no cursor, no black frames or text cards) and encode `tools/video/streamer-rise-landscape.mp4`
+(1920×1080) and `tools/video/streamer-rise-portrait.mp4` (1080×1620, 2:3).
+
 ## Development tools
 
 `tools/` contains the scripts used to QA and balance the game (they use Playwright, not required to play):
@@ -119,13 +151,17 @@ tools/                    dev tooling: Playwright playthroughs, screenshots, bal
 * `node tools/play.mjs [w] [h] [mobile]` — scripted tutorial playthrough with screenshots and console-error capture.
 * `node tools/play2.mjs` — mid-game flows (streams, sleep, decor, themes, homes, level-ups, deals, wardrobe).
 * `node tools/play3.mjs` — returning player: offline views, daily reward streak, next-day event + reminder (`?dayOffset`).
+* `node tools/play4.mjs` — late game: collab videos, Lumo, inbox, delivery, team, poll/giveaway, penthouse.
+* `node tools/sdktest.mjs` — CrazyGames SDK integration checks (mock SDK).
+* `node tools/trailer.mjs landscape|portrait` — store gameplay videos (needs `ffmpeg`).
 * `node tools/look.mjs 13 21` — high-quality room screenshots at the given in-game hours.
 * `node tools/sim.mjs [runs] ['{"RV":2.0}']` — economy pacing simulator (prints level / fans / money over real minutes).
 * `node tools/check.mjs` — syntax-checks every ES module.
 * `node tools/steps.mjs steps.json [w] [h] [outDir]` — runs a JSON list of browser steps (url / click / eval / waitFor / shot).
 * `node tools/build-artifact.mjs public <outDir>` — packages the game as a single page for a Claude Artifact (inline CSS, Three.js from jsDelivr, fonts from Google Fonts, game modules as supporting files).
 
-Tools expect the server on `http://localhost:8080` and Playwright's Chromium (`npm i playwright` in `tools/` if needed).
+Tools expect the server on `http://localhost:8080` (`node server.js 8080`) and Playwright's Chromium
+(`npm i playwright` in `tools/` if needed).
 
 Target pacing from the simulator: first 100 subscribers in ~5 minutes, 1K (Bronze plaque) in ~25 minutes,
 10K in ~70 minutes, 100K in ~3 hours and 1M after roughly 6–7 hours of play.

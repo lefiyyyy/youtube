@@ -118,7 +118,7 @@ export const Life = {
     const s = G.s;
     const hr = G.game.hour;
     const body = h(`<div class="col" style="gap:8px">
-      <button class="post-type" data-a="sleep" style="margin:0"><div class="pi" style="background:linear-gradient(135deg,#6d6bff,#2a1b5a)">${ic('moon')}</div><div class="grow"><div class="pn">Sleep until morning</div><div class="pd">Full energy · new day &amp; new trends · videos earn overnight</div></div>${ic('chevron')}</button>
+      <button class="post-type" data-a="sleep" style="margin:0"><div class="pi" style="background:linear-gradient(135deg,#6d6bff,#2a1b5a)">${ic('moon')}</div><div class="grow"><div class="pn">Sleep until morning</div><div class="pd">Full energy · new day, new trends &amp; deals</div></div>${ic('chevron')}</button>
       <button class="post-type" data-a="nap" style="margin:0"><div class="pi" style="background:linear-gradient(135deg,#35dcff,#1f7fe0)">${ic('zzz')}</div><div class="grow"><div class="pn">Quick nap</div><div class="pd">${ic('bolt')} +35 energy · 2 hours</div></div>${ic('chevron')}</button>
       ${s.home >= 2 ? `<button class="post-type" data-a="sofa" style="margin:0"><div class="pi" style="background:linear-gradient(135deg,#ff7aa8,#ff3f7f)">${ic('sofa')}</div><div class="grow"><div class="pn">Chill on the sofa</div><div class="pd">${ic('bolt')} +15 energy · 1 hour</div></div>${ic('chevron')}</button>` : ''}</div>`);
     const m = modal({ title: 'Rest', sub: `${ic('bolt')} ${Math.round(s.needs.energy)} energy · ${hr >= 20 || hr < 6 ? 'It\'s getting late' : 'Daytime'}`, icon: 'bed', iconBg: 'linear-gradient(135deg,#6d6bff,#2a1b5a)', body, size: 'sm' });
@@ -149,6 +149,7 @@ export const Life = {
       s.needs.hunger = clamp(s.needs.hunger - 12, 0, 100);
       s.stats.sleeps++;
       bus.emit('q', { evt: 'sleep', n: 1 });
+      G.game.adBreak = true;
       dim.style.opacity = 0; setTimeout(() => dim.remove(), 1200);
       A.sfx('wake'); A.setMusic('chill');
       W.standUp();
@@ -162,13 +163,13 @@ export const Life = {
       summary = { fans: s.fans.vid - startFans, money: s.money - startMoney, views: s.stats.views - startViews };
       G.game.passive.views = 0;
     });
-    if (summary && (summary.views > 0 || summary.fans > 0)) {
+    if (summary) {
       const s = G.s;
       const tr = G.game.trend();
       const body = h(`<div class="col" style="gap:12px;text-align:center">
         <div class="display" style="font-size:26px">Good morning, ${esc(s.profile.name)}!</div>
-        <div class="muted" style="font-weight:600">While you slept, your videos kept working:</div>
-        <div class="res-stats"><div class="stat"><div class="sl">${ic('eye')}Views</div><div class="sv">+${fmt(summary.views)}</div></div><div class="stat subs"><div class="sl">${ic('users')}Subs</div><div class="sv">+${fmt(summary.fans)}</div></div><div class="stat money"><div class="sl">${ic('dollar')}Earned</div><div class="sv">+${fmtMoney(summary.money)}</div></div></div>
+        ${summary.views > 0 ? `<div class="muted" style="font-weight:600">Your uploads kept working:</div>
+        <div class="res-stats"><div class="stat"><div class="sl">${ic('eye')}Views</div><div class="sv">+${fmt(summary.views)}</div></div><div class="stat subs"><div class="sl">${ic('users')}Subs</div><div class="sv">+${fmt(summary.fans)}</div></div><div class="stat money"><div class="sl">${ic('dollar')}Earned</div><div class="sv">+${fmtMoney(summary.money)}</div></div></div>` : `<div class="muted" style="font-weight:600">Fully rested. A fresh day to create!</div>`}
         <div class="chip hot" style="align-self:center;font-size:14px;padding:8px 14px">${ic('flame')}Today's trend: ${tr.hot[0].toUpperCase() + tr.hot.slice(1)} · Rising: ${tr.rising}</div>
         <button class="btn primary big" data-a="ok">${ic('sun')}Let's go</button></div>`);
       const m = modal({ title: `Day ${s.clock.day}`, icon: 'sun', iconBg: 'linear-gradient(135deg,#ffd577,#ff7a2f)', body, size: 'sm' });
