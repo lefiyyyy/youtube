@@ -142,12 +142,14 @@ The game is ready for **Basic Launch** and already wired for Full Launch (`publi
 cooldown, platform mute and data saves.
 
 **Store videos** (no cover image needed, the existing one is used): `node tools/trailer.mjs landscape` and
-`node tools/trailer.mjs portrait` capture real gameplay frame by frame on a fake clock (true game speed, no
-speed-up, no cursor, no black frames or text cards) and encode `promo/streamer-rise-landscape.mp4`
-(1920×1080) and `promo/streamer-rise-portrait.mp4` (1080×1620, 2:3). Both are ~19 s, silent, H.264, well under
-50 MB, and show: the studio with live HUD counters → recording a game and catching highlights → a premiere going
-viral → a perfect Big Play on stream that floods the chat with W's → the rooftop party → the Gold Disc unboxing. Upload them as the game's
-landscape and portrait videos in the CrazyGames developer portal.
+`node tools/trailer.mjs portrait` play the game once on a fake clock, capture each high-energy beat as its own clip
+at true game speed (no speed-up, no cursor, no black frames, no text cards or logos), then cut them together with
+punch-in zooms and impact flashes: `promo/streamer-rise-landscape.mp4` (1920×1080) and
+`promo/streamer-rise-portrait.mp4` (1080×1620, 2:3), ~18 s, silent, H.264, well under 50 MB. The edit: a premiere
+going VIRAL (hook) → a perfect Big Play that floods the chat with W's → catching highlights while recording →
+level up → HYPE TRAIN → a raid → a new setup installed → moving into the penthouse → the rooftop party → the
+Gold Disc unboxing → 100K subscribers. Upload them as the game's landscape and portrait videos in the CrazyGames
+developer portal.
 
 ## Development tools
 

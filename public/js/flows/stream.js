@@ -296,6 +296,7 @@ export const Stream = {
       };
       requestAnimationFrame(f);
     });
+    this.live = { S2, raid, startTrain, addHype }; // handle for dev tools (store-video capture)
     const doAct = async (id) => {
       if (S2.ended || cds[id] > 0) return;
       const a = acts.find((x) => x.id === id);
@@ -445,7 +446,7 @@ export const Stream = {
       requestAnimationFrame(frame);
     });
     removeEventListener('keydown', keyMap);
-    S2.ended = true;
+    S2.ended = true; this.live = null;
     W.room.setLive(false);
     addMsg('GG! thanks for watching :heart:', { user: s.profile.name, color: s.profile.accent, cls: 'me' });
     react('wave');
