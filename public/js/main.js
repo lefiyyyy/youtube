@@ -15,6 +15,7 @@ import { Life } from './flows/life.js';
 import { Shop } from './flows/shop.js';
 import { Meta } from './flows/meta.js';
 import { Creator } from './flows/creator.js';
+import { Out } from './flows/out.js';
 import { SDK } from './sdk.js';
 import { sleep, dayIndex } from './core/util.js';
 import { eventForDay, EVENTS } from './data/events.js';
@@ -55,7 +56,7 @@ async function boot() {
   addEventListener('keydown', unlock, { capture: true });
   // systems
   G.game = new Game();
-  G.create = Create; G.stream = Stream; G.social = Social; G.life = Life; G.shop = Shop; G.meta = Meta; G.creator = Creator; G.tutorial = Tutorial; G.sdk = SDK;
+  G.create = Create; G.stream = Stream; G.social = Social; G.life = Life; G.shop = Shop; G.meta = Meta; G.creator = Creator; G.tutorial = Tutorial; G.sdk = SDK; G.out = Out;
   G.ui = { hud: new HUD(), labels: new Labels() };
   Meta.init();
   Meta.refreshDeals();
@@ -76,13 +77,13 @@ async function boot() {
   const loop = (t) => {
     const dt = Math.min(0.1, (t - last) / 1000); last = t;
     if (window.__pauseRender) { requestAnimationFrame(loop); return; }
-    world.update(dt);
+    if (!world.paused) world.update(dt);
     G.game.update(dt);
     G.ui.hud.update(dt);
     G.ui.labels.update();
-    world.render();
+    if (!world.paused) world.render();
     // adaptive quality on 'auto': step down if the device struggles
-    if (s.settings.quality === 'auto' && !qp && perf.checks < 3 && !document.hidden) {
+    if (s.settings.quality === 'auto' && !qp && perf.checks < 3 && !document.hidden && !world.paused) {
       perf.frames++; perf.time += (t - (perf.lastT || t)) / 1000; perf.lastT = t;
       if (perf.time > 6) {
         const fps = perf.frames / perf.time;
@@ -129,8 +130,7 @@ async function boot() {
     if (Meta.dailyAvailable()) setTimeout(() => Meta.daily(true), 500);
     if (hadSave) {
       const awayH = Math.max(0, (Date.now() - (s.lastPlayed || Date.now())) / 3600000);
-      if (awayH > 0.05) G.game.tailViews(Math.min(30, awayH * 6));
-      setTimeout(() => G.game.flushPassive(true), 1500);
+      if (awayH > 0.05) G.game.offline(awayH);
     }
   }
   addEventListener('visibilitychange', () => { if (document.hidden) { save(true); SDK.gameplayStop(); audio.ctx?.suspend(); } else { SDK.gameplayStart(); audio.ctx?.resume(); } });

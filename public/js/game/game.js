@@ -12,6 +12,7 @@ import { FOODS } from '../data/food.js';
 import { trendFor, totalFans, setupStats } from './economy.js';
 import { toast, fly, modal, anyModal, h, bind, ic, $, pointAt } from '../ui/ui.js';
 import { eventForDay, EVENTS } from '../data/events.js';
+import { gameMinutes, step, migrateVideo } from './videos.js';
 
 export class Game {
   constructor() {
@@ -107,7 +108,7 @@ export class Game {
     // game fatigue recovers, social freshness recovers
     for (const k of Object.keys(s.gameUse)) s.gameUse[k] = Math.max(0, s.gameUse[k] - hours * 0.025);
     s.socialFatigue = Math.max(0, (s.socialFatigue || 0) - hours * 0.12);
-    this.tailViews(hours);
+    this.accrueVideos();
     G.world.applyTime(this.hour);
   }
   lateHours(startMin, hours) {
@@ -124,22 +125,37 @@ export class Game {
     G.meta?.refreshDeals();
     G.meta?.genInbox();
   }
-  tailViews(hours) {
+  // Uploads keep earning as game time passes (see videos.js): views, subscribers, likes and revenue.
+  accrueVideos() {
+    const s = this.s, t = gameMinutes(s);
+    let views = 0, subs = 0, money = 0;
+    for (const v of s.videos) {
+      if (v.V === undefined) migrateVideo(v, s);
+      if (v.views >= v.V) continue;
+      const d = step(v, t);
+      if (!d) continue;
+      views += d.views; subs += d.subs; money += d.money; s.stats.likes += d.likes;
+      if (s.stats.best && v.views > s.stats.best.views) s.stats.best = { views: v.views, title: v.title };
+    }
+    if (!views) return;
+    s.stats.views += views;
+    this.passive.views += views; this.passive.subs += subs; this.passive.money += money;
+    if (subs) this.addFans('vid', subs, null, true);
+    if (money) { s.money += money; s.stats.earned += money; bus.emit('q', { evt: 'earn', n: money }); }
+    bus.emit('videos:tick');
+  }
+  // Returning players: their uploads kept running while they were away (capped)
+  offline(awayH) {
     const s = this.s;
-    let v = 0, sub = 0, mon = 0;
-    for (const vd of s.videos) {
-      if (!vd.tailLeft || vd.tailLeft < 1) continue;
-      const take = Math.min(vd.tailLeft, Math.max(1, vd.tailLeft * (1 - Math.exp(-hours / 14))));
-      vd.tailLeft -= take; vd.views += take;
-      v += take; sub += take * vd.conv; mon += take * vd.rpm;
-    }
-    if (v >= 1) {
-      s.stats.views += v;
-      this.passive.views += v; this.passive.subs += sub; this.passive.money += mon;
-      const ds = Math.floor(this.passive.subs), dm = Math.floor(this.passive.money);
-      if (ds >= 1) { this.addFans('vid', ds, null, true); this.passive.subs -= ds; }
-      if (dm >= 1) { this.s.money += dm; s.stats.earned += dm; this.passive.money -= dm; bus.emit('q', { evt: 'earn', n: dm }); }
-    }
+    const mins = Math.min(30, awayH * 6) * 60;
+    if (mins < 3) return;
+    const p0 = { ...this.passive };
+    for (const v of s.videos) { if (v.V === undefined) migrateVideo(v, s); v.t0 -= mins; }
+    this.passive = { views: 0, subs: 0, money: 0, t: 0 };
+    this.accrueVideos();
+    const got = { ...this.passive };
+    this.passive = { ...p0, t: 0 };
+    if (got.views >= 1) this.queue(() => G.meta.awaySummary?.(got, awayH));
   }
   flushPassive(force) {
     const p = this.passive;
@@ -182,7 +198,7 @@ export class Game {
       const mins = dt * this.clockSpeed;
       this.advance(mins / 60);
       this.passive.t += dt;
-      if (this.passive.t > 6) { this.passive.t = 0; this.flushPassive(); }
+      if (this.passive.t > 20) { this.passive.t = 0; this.passive.views = 0; }
       // celebrations queue
       if (this.queueList.length && !this._qRunning) {
         this._qRunning = true;
@@ -216,6 +232,7 @@ export class Game {
     G.world.walkTo(p.x, p.z);
   }
   doCreate() { if (this.busy) return; G.create.hub(); }
+  goOut() { if (this.busy || anyModal()) return; G.out?.open(); }
   doKitchen() { if (this.busy) return; G.life.kitchen(); }
   doRest() { if (this.busy) return; G.life.rest(); }
   openPhone(app) { if (this.busy) return; G.social.open(app); }

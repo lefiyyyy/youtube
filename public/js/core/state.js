@@ -1,5 +1,6 @@
 // Persistent game state + save/load (localStorage, mirrored to CrazyGames SDK data when present).
 import { GEAR } from '../data/gear.js';
+import { wearOf, DEFAULT_WEAR } from '../data/clothes.js';
 import { now } from './util.js';
 
 const KEY = 'streamer-rise-save-v1';
@@ -16,10 +17,15 @@ export function freshState() {
     lastPlayed: now(),
     profile: {
       name: NAMES[Math.floor(Math.random() * NAMES.length)],
-      hair: 'swoop', hairColor: '#2b1d16', skin: '#e8b48f', eyes: '#3b2a20',
-      outfit: 'hoodie', top: '#8f6bff', bottom: '#2b2f45', accessory: 'headphones', accent: '#ff4f8b',
+      gender: 'm', hair: 'swoop', hairColor: '#2b1d16', skin: '#e8b48f', eyes: '#3b2a20', accent: '#ff4f8b',
+      wear: { ...DEFAULT_WEAR.m }, col: { top: '#8f6bff', bottom: '#2b2f45', shoes: '#f4f4f6' },
       title: null, badge: null,
     },
+    wardrobe: [], // owned brand / reward clothing ids (basics are always owned)
+    skills: { gaming: 0, editing: 0, charisma: 0, business: 0 },
+    skillPts: 0,
+    friends: {}, // npc id -> relationship hearts (0..10)
+    outings: { day: 0, party: 0, meet: 0, job: 0 },
     created_char: false,
     tutorial: { step: 0, done: false },
     money: 60, sparks: 5, xp: 0, level: 1,
@@ -62,6 +68,17 @@ export const S = { state: freshState() };
 
 function migrate(d) {
   const base = freshState();
+  // fashion update: old outfit/accessory fields -> wardrobe slots
+  if (d.profile && !d.profile.wear) {
+    const p = d.profile;
+    p.wear = wearOf(p);
+    p.col = { top: p.top || '#8f6bff', bottom: p.bottom || '#2b2f45', shoes: '#f4f4f6' };
+    p.gender = ['bob', 'long', 'bun'].includes(p.hair) ? 'f' : 'm';
+    d.wardrobe = (d.cosmetics || []).filter((c) => c === 'hoodie_ghost' || c === 'jacket_pixel');
+    delete p.outfit; delete p.accessory; delete p.top; delete p.bottom;
+  }
+  // skill points for levels reached before skills existed
+  if (d.level && !d.skills) d.skillPts = (d.level - 1) * 2;
   // shallow-merge missing keys so older saves keep working
   for (const k of Object.keys(base)) if (d[k] === undefined) d[k] = base[k];
   for (const k of Object.keys(base.gear)) if (d.gear[k] === undefined) d.gear[k] = 0;

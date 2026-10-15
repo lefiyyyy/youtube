@@ -187,8 +187,8 @@ export class AudioEngine {
     if (!c || c.state !== 'running') return;
     if (this.nextT < c.currentTime - 0.2) this.nextT = c.currentTime + 0.05; // resume without a catch-up burst
     while (this.nextT < c.currentTime + 0.15) {
-      const live = this.mode === 'live';
-      const bpm = live ? 118 : this.mode === 'night' ? 74 : 82;
+      const live = this.mode === 'live' || this.mode === 'party';
+      const bpm = this.mode === 'party' ? 124 : live ? 118 : this.mode === 'night' ? 74 : 82;
       const sixteenth = 60 / bpm / 4;
       this.playStep(this.step, this.nextT, live, sixteenth);
       let dt = sixteenth;
@@ -220,6 +220,15 @@ export class AudioEngine {
         const n = PENTA[Math.floor(Math.random() * PENTA.length)];
         this.osc('sine', NOTE(n), NOTE(n), t, 0.9, 0.035, D, { verb: 0.6, attack: 0.008 });
       }
+    } else if (this.mode === 'party') {
+      // rooftop house: four-on-the-floor, clap, open offbeat hats, pumping bass, chord stabs
+      if (st % 4 === 0) this.kick(t, 0.5, D);
+      if (st === 4 || st === 12) this.noise(t, 0.14, 0.11, { f: 1600, q: 0.8, dest: D, verb: 0.25 });
+      if (st % 4 === 2) this.noise(t, 0.12, 0.05, { type: 'highpass', f: 6000, dest: D }); else if (st % 2 === 1) hat(0.014);
+      const root = chord[0] - 24;
+      if (st % 4 === 2) this.osc('sawtooth', NOTE(root + 12), NOTE(root + 12), t, sx * 1.6, 0.08, D, { lp: 520, attack: 0.004 });
+      if (st === 2 || st === 6 || st === 11 || st === 14) chord.forEach((n) => this.osc('square', NOTE(n + 12), NOTE(n + 12), t, sx * 0.9, 0.018, D, { lp: 2400, verb: 0.35 }));
+      if (st === 0 && this.bar % 4 === 0) chord.forEach((n) => this.osc('sawtooth', NOTE(n), NOTE(n), t, sx * 15, 0.012, D, { lp: 1400, attack: 0.4, verb: 0.6, detune: 11 }));
     } else {
       // synthwave: 4-floor, clap, offbeat hats, saw bass, arp
       if (st % 4 === 0) this.kick(t, 0.45, D);

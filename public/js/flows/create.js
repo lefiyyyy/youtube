@@ -20,7 +20,11 @@ import { gameCover, drawGame } from '../world/screens.js';
 import { videoOutcome, setupStats, totalFans } from '../game/economy.js';
 import { hasFeature } from '../data/progression.js';
 import { makeThumb, smallJpeg, npcPortrait } from './thumbs.js';
-import { fmt, fmtMoney, clamp, sleep, pick, uid, isTouch } from '../core/util.js';
+import { makeVideo, step, gradeOf, PREMIERE_MIN } from '../game/videos.js';
+import { makeComment } from '../data/comments.js';
+import { USER_COLORS } from '../data/chat.js';
+import { emotify } from '../ui/icons.js';
+import { fmt, fmtMoney, fmtInt, clamp, sleep, pick, uid, isTouch } from '../core/util.js';
 
 export function overlay(html, cls = '') {
   const el = h(`<div class="flow ${cls}">${html}</div>`);
@@ -134,9 +138,10 @@ export const Create = {
   pickPartner() {
     const s = G.s, fans = totalFans(s);
     const body = h(`<div class="grid">${CREATORS.map((c) => {
-      const ok = fans >= c.fans * 0.25;
+      const friend = (s.collabsUnlocked || []).includes(c.id);
+      const ok = friend || fans >= c.fans * 0.25;
       return `<button class="card click ${ok ? '' : 'locked'}" data-a="${ok ? 'p' : 'n'}" data-id="${c.id}"><div class="row"><div class="big-ic" style="background:${c.color};border-radius:50%;overflow:hidden"><img src="${npcPortrait(c)}" style="width:130%;margin-top:10%"></div><div><div class="ttl">${c.name}</div><div class="tiny muted">${fmt(c.fans)} fans · ${c.niche}</div></div></div>
-        <div class="foot">${ok ? `<span class="chip good">x${(1.3 + Math.min(1.5, c.fans / Math.max(1, fans)) * 0.4).toFixed(1)} reach</span><span class="chip">${c.cost ? fmtMoney(c.cost) : 'Free'}</span>` : `<span class="chip">${ic('lock')}Need ${fmt(c.fans * 0.25)} fans</span>`}</div></button>`;
+        <div class="foot">${ok ? `<span class="chip good">x${(1.3 + Math.min(1.5, c.fans / Math.max(1, fans)) * 0.4).toFixed(1)} reach</span><span class="chip ${friend ? 'good' : ''}">${friend ? `${ic('heart')}Friend · Free` : c.cost ? fmtMoney(c.cost) : 'Free'}</span>` : `<span class="chip">${ic('lock')}Need ${fmt(c.fans * 0.25)} fans or meet at a party</span>`}</div></button>`;
     }).join('')}</div>`);
     return new Promise((res) => {
       const m = modal({ title: 'Collab partner', icon: 'handshake', iconBg: 'var(--violet)', body, size: 'md', onClose: () => res(null) });
@@ -144,7 +149,8 @@ export const Create = {
         n: () => G.audio.sfx('error'),
         p: (b) => {
           const c = CREATORS.find((x) => x.id === b.dataset.id);
-          if (c.cost && !G.game.spend(c.cost)) return;
+          const friend = (s.collabsUnlocked || []).includes(c.id);
+          if (c.cost && !friend && !G.game.spend(c.cost)) return;
           s.collabs[c.id] = (s.collabs[c.id] || 0) + 1;
           const mult = 1.3 + Math.min(1.5, c.fans / Math.max(1, fans)) * 0.4;
           res({ ...c, mult: mult * (G.game.currentEvent().fx.collabMult || 1) });
@@ -155,6 +161,8 @@ export const Create = {
   },
 
   // ---------------------------------------------------------------- VIDEO FLOW
+  // Pick game & type -> the creator records (catch highlights) -> edits automatically -> thumbnail/title/tags
+  // -> upload -> live premiere where views, likes, comments and subs roll in.
   async video() {
     const s = G.s, W = G.world;
     let game;
@@ -168,243 +176,191 @@ export const Create = {
     if (!pc) { await this.sitting; W.standUp(); W.shot('room'); return; }
     const { content, sponsor, partner } = pc;
     await this.sitting;
-    // costs
     s.needs.energy = clamp(s.needs.energy - content.energy * (1 - (setupStats(s).comfort * 0.04)), 0, 100);
     s.needs.hunger = clamp(s.needs.hunger - content.hunger, 0, 100);
-    // record
     G.audio.sfx('power');
     W.screens.data.game = game;
     W.screens.setMode('main', 'record');
     W.screens.setMode('laptop', 'record');
     if (W.screens.surfaces.has('side')) W.screens.setMode('side', 'analytics');
-    const rec = await this.recordGame(game, content);
-    // edit
-    const ed = await this.editGame(game, content);
-    // publish choices
-    const pub = await this.publishStep(game, content, partner);
-    // upload
+    const rec = await this.record(game, content);
+    const ed = await this.edit(game, content, rec);
+    const pub = await this.publishStep(game, content, partner, rec, ed);
     await this.upload(pub);
-    // outcome
     const ev = G.game.currentEvent();
     const tb = s.buffs.trend > 0;
     if (tb) G.game.useBuff('trend');
     const focus = G.game.useBuff('focus');
-    const perf = clamp(rec.perf * 0.62 + ed.perf * 0.38, 0, 1);
+    const perf = clamp(rec.perf * 0.58 + ed.q * 0.42, 0, 1);
     const out = videoOutcome(s, {
-      game, content, perf, thumb: pub.thumb, title: pub.title, hour: G.game.hour, trend: G.game.trend(), event: ev,
+      game, content, perf, thumb: pub.thumb, title: pub.title, hour: G.game.hour, trend: G.game.trend(), event: ev, tagMult: pub.tagMult,
       fatigue: s.gameUse[game.id] || 0, trendBoost: tb, partnerMult: hasFeature(s, 'partner') ? 1.4 : 1, collab: partner?.mult, focus, affinity: affinityFor(game),
     });
     if (partner) out.insights.unshift(['info', 'handshake', `Collab with ${partner.name}`]);
     if (sponsor) out.views = Math.round(out.views * 0.95);
     s.gameUse[game.id] = clamp((s.gameUse[game.id] || 0) + 0.24, 0, 1);
-    G.game.advance(content.hours);
-    await this.results(out, { game, content, pub, perf, sponsor, partner, rec });
+    G.game.advance(content.hours + ed.hours);
+    await this.premiere(out, { game, content, pub, perf, sponsor, partner, rec, ed });
     W.screens.setMode('main', 'desktop'); W.screens.setMode('laptop', 'desktop');
     if (W.screens.surfaces.has('side')) W.screens.setMode('side', 'chat');
   },
 
-  // ---------------------------------------------------------------- RECORD MINIGAME
-  recordGame(game, content) {
-    const W = G.world, cfg = content.game;
+  // ---------------------------------------------------------------- RECORDING (catch the highlights)
+  record(game, content) {
+    const W = G.world, s = G.s;
     G.ui.hud.show(false);
     W.shot('desk', { shift: isTouch || innerWidth < 900 ? -0.22 : -0.2 });
     W.char.play('sitGame');
     W.char.setExpression('focus');
     const stopType = G.audio.loop('typing');
-    const el = overlay(`<div class="viewfinder glass">
-      <div class="vf-screen"><canvas width="640" height="360"></canvas><div class="vf-hud"><div class="rec"><b></b>REC</div><div class="vf-timer">0:00</div><div class="combo"></div></div></div>
-      <div class="lane"><canvas></canvas></div>
-      <div class="mg-help"><span>${ic('target')} Tap when moments hit the ring</span><span class="row">${isTouch ? '' : '<kbd>SPACE</kbd>'}<span class="score-ring">${ic('star')}<span class="sc">0</span></span></span></div></div>`, 'record');
-    const gc = $('.vf-screen canvas', el), gx = gc.getContext('2d');
-    const lane = $('.lane', el), lc = $('canvas', lane), lx = lc.getContext('2d');
-    const dpr = Math.min(2, devicePixelRatio || 1);
-    const size = () => { lc.width = lane.clientWidth * dpr; lc.height = lane.clientHeight * dpr; };
-    size();
-    // schedule
-    const dur = cfg.dur, notes = [];
-    let t = 1.4;
-    while (t < dur - 0.9) {
-      const r = Math.random();
-      const kind = r < cfg.gold ? 'gold' : r < cfg.gold + cfg.red ? 'red' : 'norm';
-      const hold = cfg.holds && kind === 'norm' && Math.random() < 0.22 ? 0.45 + Math.random() * 0.4 : 0;
-      notes.push({ t, kind, hold, state: 0 });
-      t += (0.55 + Math.random() * 0.75) / cfg.density + hold;
-    }
-    const speed = 300 * cfg.speed; // px per sec (css px)
-    const zoneX = () => lane.clientWidth * 0.16;
-    let clock = -0.6, combo = 0, best = 0, score = 0, maxScore = 0, perfects = 0, hits = 0, misses = 0, holding = null, fails = 0;
-    for (const n of notes) maxScore += n.kind === 'gold' ? 2 : n.kind === 'red' ? (cfg.blooper ? 0.8 : 0.3) : 1 + (n.hold ? 0.5 : 0);
-    const judgeEl = (txt, col) => { const j = h(`<div class="judge" style="color:${col}">${txt}</div>`); lane.appendChild(j); setTimeout(() => j.remove(), 700); };
-    const comboEl = $('.combo', el), scEl = $('.sc', el), timerEl = $('.vf-timer', el);
-    const react = (good) => {
-      if (good) { W.screens.data.fx.hit = 1; if (Math.random() < 0.35) { W.char.play('sitWin', { restart: true }); W.char.setExpression('happy', 1.2); setTimeout(() => W.char.clip === 'sitWin' && W.char.play('sitGame'), 700); } }
-      else { W.screens.data.fx.fail = 1; W.char.play('sitFail', { restart: true }); W.char.setExpression('sad', 1); setTimeout(() => W.char.clip === 'sitFail' && W.char.play('sitGame'), 700); }
-    };
-    const press = () => {
-      if (clock < 0) return;
-      let target = null, bestD = 1e9;
-      for (const n of notes) { if (n.state) continue; const d = Math.abs(n.t - clock); if (d < bestD) { bestD = d; target = n; } }
-      if (!target || bestD > 0.22) { combo = 0; G.audio.sfx('mouse'); return; }
-      const pts = target.kind === 'gold' ? 2 : 1;
-      if (target.kind === 'red') {
-        target.state = 2;
-        if (cfg.blooper) { score += 0.8; hits++; combo++; judgeEl('BLOOPER!', '#c3b2ff'); G.audio.sfx('blooper'); W.char.play('sitLaugh', { restart: true }); W.char.setExpression('laugh', 1); setTimeout(() => W.char.play('sitGame'), 800); }
-        else { score -= 0.6; fails++; combo = 0; judgeEl('OOPS', '#ff8f99'); G.audio.sfx('miss'); react(false); G.world.addShake(0.4); }
-        return;
-      }
-      if (bestD < 0.075) { target.state = 1; score += pts; perfects++; hits++; combo++; judgeEl(target.kind === 'gold' ? 'CLUTCH!' : 'PERFECT', target.kind === 'gold' ? '#ffd54a' : '#b6ff5c'); G.audio.sfx('perfect'); react(true); bus.emit('q', { evt: 'perfect', n: 1 }); }
-      else if (bestD < 0.16) { target.state = 1; score += pts * 0.6; hits++; combo++; judgeEl('GOOD', '#7ad7ff'); G.audio.sfx('good'); if (target.kind === 'gold') react(true); }
-      else { target.state = 3; misses++; combo = 0; judgeEl('MISS', '#ff8f99'); G.audio.sfx('miss'); return; }
-      if (target.hold) holding = target;
-      best = Math.max(best, combo);
-    };
-    const release = () => {
-      if (!holding) return;
-      const end = holding.t + holding.hold;
-      if (Math.abs(clock - end) < 0.2 || clock > end) { score += 0.5; judgeEl('HELD!', '#b6ff5c'); G.audio.sfx('good'); }
-      else { judgeEl('EARLY', '#ffb547'); combo = 0; }
-      holding = null;
-    };
-    const onKey = (e) => { if (e.code === 'Space' || e.code === 'Enter') { e.preventDefault(); if (!e.repeat) press(); } };
-    const onKeyUp = (e) => { if (e.code === 'Space' || e.code === 'Enter') release(); };
-    const onDown = (e) => { e.preventDefault(); press(); };
-    el.addEventListener('pointerdown', onDown);
-    el.addEventListener('pointerup', release);
-    addEventListener('keydown', onKey); addEventListener('keyup', onKeyUp);
-    addEventListener('resize', size);
-    G.tutorial?.onRecord?.(el);
-    return new Promise((res) => {
-      let last = performance.now();
-      const frame = (now) => {
-        const dt = Math.min(0.6, (now - last) / 1000); last = now;
-        clock += dt;
-        // game view
-        if (window.__autoplay) for (const n of notes) { if (!n.state && n.kind !== 'red' && n.t <= clock + 0.02 && n.t > clock - 0.07) { press(); if (n.hold) setTimeout(release, n.hold * 1000); } }
-        drawGame(gx, 640, 360, W.screens.t, game, W.screens.data.fx);
-        // lane
-        const Wd = lane.clientWidth, Hd = lane.clientHeight;
-        lx.setTransform(dpr, 0, 0, dpr, 0, 0);
-        lx.clearRect(0, 0, Wd, Hd);
-        const zx = zoneX(), cy = Hd / 2;
-        // track
-        lx.fillStyle = 'rgba(255,255,255,0.06)'; lx.fillRect(0, cy - 3, Wd, 6);
-        // zone
-        const pulse = 1 + Math.sin(clock * 10) * 0.04;
-        lx.strokeStyle = 'rgba(255,255,255,0.9)'; lx.lineWidth = 4; lx.beginPath(); lx.arc(zx, cy, 26 * pulse, 0, Math.PI * 2); lx.stroke();
-        lx.strokeStyle = 'rgba(255,79,139,0.5)'; lx.lineWidth = 10; lx.beginPath(); lx.arc(zx, cy, 32 * pulse, 0, Math.PI * 2); lx.stroke();
-        for (const n of notes) {
-          const x = zx + (n.t - clock) * speed;
-          if (!n.state && clock - n.t > 0.18) {
-            n.state = 3;
-            if (n.kind === 'red') { score += cfg.blooper ? 0 : 0.3; }
-            else { misses++; combo = 0; judgeEl('MISS', '#ff8f99'); G.audio.sfx('miss'); if (n.kind === 'gold') react(false); }
-          }
-          const tailW = n.hold * speed;
-          if (x > Wd + 40 + tailW || (n.state && n.state !== 1) || (n.state === 1 && !n.hold) || (n.state === 1 && n.hold && clock > n.t + n.hold)) continue;
-          if (x < -60 - tailW) continue;
-          const col = n.kind === 'gold' ? '#ffd54a' : n.kind === 'red' ? (cfg.blooper ? '#b48cff' : '#ff4f5e') : '#7ad7ff';
-          if (n.hold) { lx.fillStyle = col + '88'; lx.beginPath(); lx.roundRect(Math.max(x, zx), cy - 12, tailW - Math.max(0, zx - x), 24, 12); lx.fill(); }
-          if (n.state === 1) continue;
-          const r = n.kind === 'gold' ? 22 : 18;
-          const g = lx.createRadialGradient(x, cy, 2, x, cy, r * 1.8);
-          g.addColorStop(0, col); g.addColorStop(1, 'rgba(0,0,0,0)');
-          lx.fillStyle = g; lx.beginPath(); lx.arc(x, cy, r * 1.8, 0, Math.PI * 2); lx.fill();
-          lx.fillStyle = col; lx.beginPath(); lx.arc(x, cy, r, 0, Math.PI * 2); lx.fill();
-          lx.fillStyle = 'rgba(255,255,255,0.9)'; lx.beginPath(); lx.arc(x - r * 0.3, cy - r * 0.3, r * 0.28, 0, Math.PI * 2); lx.fill();
-          lx.strokeStyle = '#1a1830'; lx.lineWidth = 3; lx.lineCap = 'round';
-          if (n.kind === 'red' && !cfg.blooper) { lx.beginPath(); lx.moveTo(x - 6, cy - 6); lx.lineTo(x + 6, cy + 6); lx.moveTo(x + 6, cy - 6); lx.lineTo(x - 6, cy + 6); lx.stroke(); }
-          else if (n.kind === 'gold') { lx.fillStyle = '#7a4b00'; lx.beginPath(); for (let i = 0; i < 10; i++) { const rr = i % 2 ? 4 : 9, a = i * Math.PI / 5 - Math.PI / 2; lx.lineTo(x + Math.cos(a) * rr, cy + Math.sin(a) * rr); } lx.fill(); }
-          else if (n.kind === 'red') { lx.fillStyle = '#2b1050'; lx.font = 'bold 16px sans-serif'; lx.textAlign = 'center'; lx.fillText('LOL', x, cy + 6); }
-        }
-        comboEl.textContent = combo >= 3 ? `${combo}x COMBO` : '';
-        scEl.textContent = Math.max(0, Math.round((score / maxScore) * 100));
-        const left = Math.max(0, dur - Math.max(0, clock));
-        timerEl.textContent = `0:${String(Math.ceil(left)).padStart(2, '0')}`;
-        if (clock < dur) requestAnimationFrame(frame);
-        else finish();
-      };
-      const finish = () => {
-        el.removeEventListener('pointerdown', onDown);
-        removeEventListener('keydown', onKey); removeEventListener('keyup', onKeyUp); removeEventListener('resize', size);
-        stopType();
-        const perf = clamp(score / maxScore, 0, 1);
-        const wrapT = h(`<div class="combo" style="top:40%;font-size:44px">${perf > 0.85 ? 'INSANE TAKE!' : perf > 0.6 ? "THAT'S A WRAP!" : 'WRAPPED'}</div>`);
-        $('.vf-hud', el).appendChild(wrapT);
-        G.audio.sfx(perf > 0.6 ? 'reward' : 'pop');
-        W.char.play(perf > 0.6 ? 'sitWin' : 'sit', { restart: true });
-        W.char.setExpression(perf > 0.6 ? 'happy' : 'neutral', 2);
-        setTimeout(() => { closeOverlay(el); res({ perf, perfects, hits, misses, best }); }, 1100);
-      };
-      requestAnimationFrame(frame);
-    });
-  },
-
-  // ---------------------------------------------------------------- EDIT MINIGAME
-  editGame(game, content) {
-    const W = G.world, s = G.s;
-    W.screens.setMode('main', 'edit'); W.screens.setMode('laptop', 'edit');
-    W.char.play('sitEdit'); W.char.setExpression('focus');
-    W.shot('desk', { shift: innerWidth < 900 ? -0.22 : -0.2 });
-    const n = 10;
-    const kinds = [];
-    for (let i = 0; i < n; i++) kinds.push(Math.random() < 0.45 ? 'good' : Math.random() < 0.7 ? 'meh' : 'bad');
-    if (!kinds.includes('good')) kinds[2] = 'good';
-    if (!kinds.some((k) => k !== 'good')) kinds[5] = 'meh';
-    const segs = kinds.map((k) => ({ kind: k, cut: false, w: 0.7 + Math.random() * 0.8 }));
-    W.screens.data.edit = { segments: segs };
-    const auto = s.team?.editor ? 0.95 : s.stats.videos >= 3 ? clamp(0.62 + s.gear.pc * 0.05, 0, 0.9) : null;
-    const el = overlay(`<div class="viewfinder glass">
-      <div class="row"><div class="grow"><div class="display" style="font-size:22px">Edit the cut</div><div class="tiny muted" style="font-weight:600">Tap ${ic('zzz')} boring and ${ic('x')} fail clips before the playhead hits them. Keep ${ic('star')} highlights.</div></div>
-      ${auto ? `<button class="btn ${s.team?.editor ? 'go' : 'ghost'} small" data-a="auto">${ic(s.team?.editor ? 'scissors' : 'bolt')}${s.team?.editor ? 'Editor' : 'Auto'} ${Math.round(auto * 100)}%</button>` : ''}</div>
-      <div class="vf-screen" style="aspect-ratio:21/9"><canvas width="640" height="274"></canvas><div class="vf-hud"><div class="rec" style="background:rgba(0,0,0,.55)">${ic('scissors')} EDITING</div></div></div>
-      <div class="timeline">${segs.map((sg, i) => `<button class="seg ${sg.kind}" data-a="seg" data-i="${i}" data-silent="1" style="flex:${sg.w}">${ic(sg.kind === 'good' ? 'star' : sg.kind === 'bad' ? 'x' : 'zzz')}</button>`).join('')}<div class="playhead"></div></div></div>`, 'edit');
+    const dur = clamp(content.game.dur * 0.62, 7, 10);
+    const el = overlay(`<div class="rec-card glass">
+      <div class="vf-screen"><canvas width="640" height="360"></canvas>
+        <div class="vf-hud"><div class="rec"><b></b>REC</div><div class="vf-timer">00:00</div></div>
+        <div class="moments"></div></div>
+      <div class="rec-foot">
+        <div class="grow"><div class="rf-l"><span>${ic('film')} Recording <b>${esc(game.name)}</b></span><span class="rf-p">0%</span></div><div class="bar thin"><i style="width:0%"></i></div></div>
+        <div class="grade-pill"><small>Quality</small><b class="qv">C</b></div>
+        <button class="btn ghost small" data-a="skip">${ic('chevron')}Skip</button>
+      </div>
+      <div class="rf-hint">${ic('target')} Tap the highlights as they happen to capture them</div></div>`, 'record');
     const gc = $('canvas', el), gx = gc.getContext('2d');
-    const tl = $('.timeline', el), ph = $('.playhead', el);
-    let done = false, auto_ = false;
-    G.tutorial?.onEdit?.(el);
+    const mom = $('.moments', el);
+    const barI = $('.bar i', el), pctEl = $('.rf-p', el), qv = $('.qv', el), timerEl = $('.vf-timer', el);
+    const genre = game.tags[0];
+    const KINDS = [
+      { k: 'clutch', icon: 'star', label: 'CLUTCH!', c: '#ffd54a' },
+      { k: 'epic', icon: 'flame', label: 'EPIC!', c: '#ff8a4c' },
+      { k: 'funny', icon: 'laugh', label: 'LOL', c: '#c3b2ff' },
+      ...(genre === 'horror' ? [{ k: 'scare', icon: 'ghost', label: 'JUMPSCARE', c: '#ff5470' }] : []),
+      ...(game.tags.includes('challenge') ? [{ k: 'rage', icon: 'zap', label: 'SO CLOSE', c: '#ff5d6c' }] : []),
+    ];
+    const skillK = (s.skills?.gaming || 0) * 0.025;
+    let clock = 0, spawned = 0, caught = 0, nextSpawn = 0.8, done = false;
+    const quality = () => clamp(0.5 + skillK + 0.42 * (spawned ? caught / spawned : 0.6) * Math.min(1, spawned / 3 + 0.2), 0.3, 1);
+    const react = (good) => {
+      if (good) { W.screens.data.fx.hit = 1; W.char.play(Math.random() < 0.5 ? 'sitWin' : 'sitIntense', { restart: true }); W.char.setExpression('happy', 1.2); setTimeout(() => !done && W.char.play('sitGame'), 750); }
+    };
+    const spawn = () => {
+      const K = pick(KINDS);
+      spawned++;
+      const x = 12 + Math.random() * 64, y = 14 + Math.random() * 56;
+      const b = h(`<button class="moment" style="left:${x}%;top:${y}%;--mc:${K.c}" data-silent="1"><i class="ring"></i>${ic(K.icon)}<span>${K.label}</span></button>`);
+      mom.appendChild(b);
+      let hit = false;
+      b.addEventListener('pointerdown', (e) => {
+        e.preventDefault(); e.stopPropagation();
+        if (hit) return; hit = true; caught++;
+        b.classList.add('got');
+        G.audio.sfx('perfect'); react(true); bus.emit('q', { evt: 'perfect', n: 1 });
+        setTimeout(() => b.remove(), 350);
+      });
+      setTimeout(() => { if (!hit) { b.classList.add('miss'); setTimeout(() => b.remove(), 300); } }, 1700);
+      if (window.__autoplay) setTimeout(() => b.dispatchEvent(new Event('pointerdown')), 500);
+    };
+    G.tutorial?.onRecord?.(el);
     return new Promise((res) => {
       const finish = () => {
         if (done) return; done = true;
-        let sc = 0;
-        if (auto_) sc = auto;
-        else { segs.forEach((sg) => { if (sg.kind === 'good' ? !sg.cut : sg.cut) sc++; }); sc /= segs.length; }
-        G.audio.sfx(sc > 0.7 ? 'reward' : 'pop');
-        setTimeout(() => { closeOverlay(el); res({ perf: sc }); }, 500);
+        stopType();
+        const q = quality();
+        const wrapT = h(`<div class="wrap-t">${q > 0.85 ? 'INSANE TAKE!' : q > 0.65 ? "THAT'S A WRAP!" : 'WRAPPED'}</div>`);
+        $('.vf-screen', el).appendChild(wrapT);
+        G.audio.sfx(q > 0.65 ? 'reward' : 'pop');
+        W.char.play(q > 0.65 ? 'sitWin' : 'sit', { restart: true });
+        W.char.setExpression(q > 0.65 ? 'happy' : 'neutral', 2);
+        if (s.skills) s.skills.gamingXp = (s.skills.gamingXp || 0) + 1;
+        setTimeout(() => { closeOverlay(el); res({ perf: q, caught, spawned }); }, 1000);
       };
-      bind(el, {
-        seg: (b) => {
-          const i = +b.dataset.i, sg = segs[i];
-          if (sg.cut || sg.locked) return;
-          sg.cut = true; b.classList.add('cut');
-          G.audio.sfx('cut');
-          if (sg.kind === 'good') { floatText(b.getBoundingClientRect().left + 20, b.getBoundingClientRect().top, 'Highlight lost', '#ff8f99'); G.audio.sfx('error'); }
-          W.char.play('sitEdit', { restart: true });
-        },
-        auto: () => { auto_ = true; segs.forEach((sg, i) => { if (sg.kind !== 'good') { sg.cut = true; $$('.seg', el)[i].classList.add('cut'); } }); G.audio.sfx('cut'); finish(); },
-      });
-      const dur = 6.2;
-      let t = -0.6, last = performance.now();
+      bind(el, { skip: () => { while (clock < dur && spawned < Math.ceil(dur / 1.5)) spawned++; clock = dur; } });
+      let last = performance.now();
       const frame = (now) => {
         if (done) return;
-        const dt = Math.min(0.6, (now - last) / 1000); last = now; t += dt;
-        drawGame(gx, 640, 274, W.screens.t, game, W.screens.data.fx);
-        const k = clamp(t / dur, 0, 1);
-        const tw = tl.clientWidth - 20;
-        ph.style.left = 10 + tw * k + 'px';
-        // lock passed segments
-        const btns = $$('.seg', el);
-        btns.forEach((b, i) => {
-          const r = b.offsetLeft + b.offsetWidth;
-          if (r < 10 + tw * k && !segs[i].locked) { segs[i].locked = true; if (!segs[i].cut) { b.style.pointerEvents = 'none'; if (segs[i].kind !== 'good') b.classList.add('lost'); else b.style.boxShadow = '0 0 0 2px #b6ff5c'; } }
-        });
-        if (k >= 1) finish(); else requestAnimationFrame(frame);
+        const dt = Math.min(0.6, (now - last) / 1000); last = now;
+        clock += dt;
+        if (clock >= nextSpawn && clock < dur - 1.2) { spawn(); nextSpawn = clock + 1.05 + Math.random() * 0.8; }
+        drawGame(gx, 640, 360, W.screens.t, game, W.screens.data.fx);
+        const k = clamp(clock / dur, 0, 1);
+        barI.style.width = k * 100 + '%'; pctEl.textContent = Math.round(k * 100) + '%';
+        const sec = Math.floor(clock * 60 * content.hours / dur * 2);
+        timerEl.textContent = `${String(Math.floor(sec / 60)).padStart(2, '0')}:${String(sec % 60).padStart(2, '0')}`;
+        const g = gradeOf(quality()); if (qv.textContent !== g) { qv.textContent = g; qv.parentElement.dataset.g = g; }
+        if (clock >= dur) finish(); else requestAnimationFrame(frame);
       };
       requestAnimationFrame(frame);
     });
   },
 
-  // ---------------------------------------------------------------- THUMBNAIL & TITLE
-  publishStep(game, content, partner) {
+  // ---------------------------------------------------------------- EDITING (automatic, pick the effort)
+  async edit(game, content, rec) {
+    const W = G.world, s = G.s;
+    const team = !!s.team?.editor;
+    const skill = s.skills?.editing || 0;
+    const pcK = s.gear.pc * 0.015;
+    const OPTS = [
+      { id: 'quick', name: 'Quick Cut', icon: 'scissors', hours: 1, energy: 3, q: 0.56, dur: 2.6, desc: 'Trim & export', steps: ['Cutting the best moments', 'Exporting'] },
+      { id: 'clean', name: 'Clean Edit', icon: 'film', hours: 2, energy: 7, q: 0.76, dur: 3.6, desc: 'Music, captions, punchy cuts', steps: ['Cutting the best moments', 'Music & sound effects', 'Captions & zooms', 'Exporting'] },
+      { id: 'pro', name: 'Pro Edit', icon: 'sparkle', hours: 4, energy: 12, q: 0.92, dur: 4.6, desc: 'Effects, color grade, sound design', steps: ['Cutting the best moments', 'Music & sound design', 'Motion graphics', 'Color grade', 'Exporting 4K'], level: 3 },
+    ];
+    if (team) OPTS.push({ id: 'team', name: 'Your Editor', icon: 'users', hours: 0, energy: 0, q: 0.95, dur: 2.2, desc: 'Hand it off — pro quality', steps: ['Editor is on it', 'Exporting'] });
+    W.shot('deskWide');
+    W.char.play('sitEdit'); W.char.setExpression('neutral');
+    const el = overlay(`<div class="picker glass edit-pick">
+      <div class="pick-head">${steps(4, 2)}<h2 class="display grow">How should we edit it?</h2></div>
+      <div class="edit-opts">${OPTS.map((o) => {
+        const locked = o.level && s.level < o.level && skill < 1;
+        const q = clamp(o.q + skill * 0.03 + pcK, 0, 1);
+        return `<button class="card click edit-opt ${locked ? 'locked' : ''}" data-a="${locked ? 'lock' : 'pick'}" data-id="${o.id}">
+          <div class="eo-ic">${ic(locked ? 'lock' : o.icon)}</div><div class="ttl">${o.name}</div><div class="tiny muted">${locked ? `Level ${o.level} or Editing skill` : o.desc}</div>
+          <div class="eo-q"><span>Quality</span><div class="bar thin"><i style="width:${q * 100}%"></i></div><b>${gradeOf(q)}</b></div>
+          <div class="foot"><span class="chip">${ic('clock')}${o.hours ? o.hours + 'h' : 'Instant'}</span>${o.energy ? `<span class="chip">${ic('bolt')}-${o.energy}</span>` : ''}</div></button>`;
+      }).join('')}</div></div>`);
+    const tutDefault = G.tutorial?.active && s.stats.videos === 0;
+    if (tutDefault) $('[data-id=clean]', el)?.classList.add('hl');
+    const opt = await new Promise((res) => bind(el, {
+      pick: (b) => res(OPTS.find((o) => o.id === b.dataset.id)),
+      lock: () => { G.audio.sfx('error'); toast('Reach level 3 or train Editing to unlock Pro edits', { icon: 'lock', color: 'var(--violet)' }); },
+    }));
+    closeOverlay(el);
+    s.needs.energy = clamp(s.needs.energy - opt.energy, 0, 100);
+    const q = clamp(opt.q + skill * 0.03 + pcK + (rec.perf - 0.7) * 0.1, 0.3, 1);
+    // auto edit: the character works, the timeline cuts itself
+    W.screens.setMode('main', 'edit'); W.screens.setMode('laptop', 'edit');
+    W.shot('desk', { shift: innerWidth < 900 ? -0.22 : -0.2 });
+    W.char.play('sitEdit'); W.char.setExpression('focus');
+    const segs = Array.from({ length: 12 }, () => ({ kind: Math.random() < 0.5 ? 'good' : Math.random() < 0.7 ? 'meh' : 'bad', cut: false, w: 0.7 + Math.random() * 0.8 }));
+    W.screens.data.edit = { segments: segs };
+    const stopT = G.audio.loop('typing');
+    const prog = overlay(`<div class="edit-prog glass">
+      <div class="row"><div class="ep-ic">${ic(opt.icon)}</div><div class="grow"><div class="display" style="font-size:20px">${opt.name}</div><div class="tiny muted ep-step" style="font-weight:600">${opt.steps[0]}…</div></div><b class="display ep-pct">0%</b></div>
+      <div class="ep-tl">${segs.map((sg) => `<i class="${sg.kind}" style="flex:${sg.w}"></i>`).join('')}<b class="ph"></b></div>
+      <div class="ep-steps">${opt.steps.map((t, i) => `<span data-i="${i}">${ic('check')}${t}</span>`).join('')}</div></div>`, 'edit');
+    const tl = $$('.ep-tl i', prog), ph = $('.ep-tl .ph', prog), pct = $('.ep-pct', prog), stepEl = $('.ep-step', prog);
+    const t0 = performance.now(), D = opt.dur * 1000;
+    await new Promise((r) => {
+      const f = (t) => {
+        const k = clamp((t - t0) / D, 0, 1);
+        pct.textContent = Math.round(k * 100) + '%';
+        ph.style.left = k * 100 + '%';
+        const si = Math.min(opt.steps.length - 1, Math.floor(k * opt.steps.length));
+        stepEl.textContent = opt.steps[si] + '…';
+        $$('.ep-steps span', prog).forEach((x, i) => { x.classList.toggle('done', i < si || k >= 1); x.classList.toggle('on', i === si && k < 1); });
+        segs.forEach((sg, i) => { if (!sg.cut && sg.kind !== 'good' && (i + 1) / segs.length < k * 1.15) { sg.cut = true; tl[i].classList.add('cut'); if (Math.random() < 0.5) G.audio.sfx('cut'); } });
+        if (Math.random() < 0.02) W.char.play('sitEdit', { restart: true });
+        if (k < 1) requestAnimationFrame(f); else r();
+      };
+      requestAnimationFrame(f);
+    });
+    stopT();
+    G.audio.sfx('reward');
+    await sleep(350);
+    closeOverlay(prog);
+    if (s.skills) s.skills.editingXp = (s.skills.editingXp || 0) + 1;
+    return { q, hours: opt.hours, style: opt.id };
+  },
+
+  // ---------------------------------------------------------------- THUMBNAIL, TITLE & TAGS
+  publishStep(game, content, partner, rec, ed) {
     const s = G.s, W = G.world;
     W.char.play('sitType'); W.char.setExpression('neutral');
     const stopT = G.audio.loop('typing');
@@ -415,28 +371,44 @@ export const Create = {
     let ti = 1, si = 0;
     const tr = G.game.trend(), trending = game.tags.includes(tr.hot) || s.buffs.trend > 0;
     if (trending) ti = 2;
-    const el = overlay(`<div class="picker glass">
-      <div class="pick-head">${steps(4, 3)}<h2 class="display grow">Thumbnail &amp; title</h2></div>
-      <div class="mb col" style="gap:14px">
-        <div class="thumbs"></div>
-        <div class="col" style="gap:8px">${titles.map((t, i) => `<button class="title-opt ${i === ti ? 'sel' : ''}" data-a="t" data-i="${i}"><span class="tt">${esc(t.text)}</span>
-          <span class="chip ${t.id === 'hype' ? 'hot' : t.id === 'honest' ? 'good' : 'info'}">${ic(t.id === 'hype' ? 'eye' : t.id === 'honest' ? 'heart' : 'flame')}${t.label}</span></button>`).join('')}</div>
+    const tags = makeTags(game, content, tr);
+    const sel = new Set(tags.filter((t) => t.def).map((t) => t.id));
+    const grade = gradeOf(clamp(rec.perf * 0.58 + ed.q * 0.42, 0, 1));
+    const el = overlay(`<div class="picker glass pub">
+      <div class="pick-head">${steps(4, 3)}<h2 class="display grow">Ready to publish</h2><span class="grade-pill" data-g="${grade}"><small>Video</small><b>${grade}</b></span></div>
+      <div class="mb pub-grid">
+        <div class="col" style="gap:10px"><div class="pl">Thumbnail</div><div class="thumbs"></div></div>
+        <div class="col" style="gap:10px">
+          <div class="pl">Title</div>
+          <div class="col" style="gap:8px">${titles.map((t, i) => `<button class="title-opt ${i === ti ? 'sel' : ''}" data-a="t" data-i="${i}"><span class="tt">${esc(t.text)}</span>
+            <span class="chip ${t.id === 'hype' ? 'hot' : t.id === 'honest' ? 'good' : 'info'}">${ic(t.id === 'hype' ? 'eye' : t.id === 'honest' ? 'heart' : 'flame')}${t.label}</span></button>`).join('')}</div>
+          <div class="pl">Tags <span class="muted">· pick up to 3</span></div>
+          <div class="tags">${tags.map((t) => `<button class="tagb ${sel.has(t.id) ? 'on' : ''} ${t.hot ? 'hot' : ''}" data-a="tag" data-id="${t.id}">${t.hot ? ic('flame') : '#'}${esc(t.label)}</button>`).join('')}</div>
+        </div>
       </div>
-      <div class="row" style="justify-content:flex-end"><span class="tiny muted grow" style="font-weight:600">${trending ? `${ic('flame')} This game is trending — Trendy titles get a boost!` : `${ic('info')} Clickbait = more clicks, Honest = more subs`}</span><button class="btn primary big shine" data-a="pub">${ic('upload')}Publish</button></div></div>`);
+      <div class="row pub-foot"><span class="tiny muted grow" style="font-weight:600">${trending ? `${ic('flame')} Trending game — Trendy titles and hot tags get a boost` : `${ic('info')} Clickbait = more clicks · Honest = more subs`}</span><button class="btn primary big" data-a="pub">${ic('upload')}Publish</button></div></div>`);
     const box = $('.thumbs', el);
-    const canvases = styles.map((st, i) => {
-      const card = h(`<button class="card click ${i === si ? 'sel' : ''}" data-a="th" data-i="${i}" style="padding:8px"><div class="row" style="justify-content:space-between"><b class="display" style="font-size:14px">${st.name}</b><span class="chip ${st.ctr > 1.15 ? 'hot' : st.trust > 1.1 ? 'good' : 'info'}" style="padding:2px 8px">${st.ctr > 1.15 ? 'Clicky' : st.trust > 1.1 ? 'Trusty' : 'Balanced'}</span></div></button>`);
-      const c = makeThumb(st.id, game, titles[ti].text);
-      card.insertBefore(c, card.firstChild);
+    styles.forEach((st, i) => {
+      const card = h(`<button class="card click thumb-card ${i === si ? 'sel' : ''}" data-a="th" data-i="${i}"><div class="row" style="justify-content:space-between"><b style="font-size:13px">${st.name}</b><span class="chip ${st.ctr > 1.15 ? 'hot' : st.trust > 1.1 ? 'good' : 'info'}" style="padding:2px 8px">${st.ctr > 1.15 ? 'Clicky' : st.trust > 1.1 ? 'Trusty' : 'Balanced'}</span></div></button>`);
+      card.insertBefore(makeThumb(st.id, game, titles[ti].text), card.firstChild);
       box.appendChild(card);
-      return c;
     });
     G.tutorial?.onPicker?.('publish', el);
     return new Promise((res) => {
       bind(el, {
         th: (b) => { si = +b.dataset.i; $$('[data-a=th]', el).forEach((x, i) => x.classList.toggle('sel', i === si)); },
         t: (b) => { ti = +b.dataset.i; $$('[data-a=t]', el).forEach((x, i) => x.classList.toggle('sel', i === ti)); },
-        pub: () => { stopT(); closeOverlay(el); res({ thumb: styles[si], title: titles[ti], canvas: makeThumb(styles[si].id, game, titles[ti].text) }); },
+        tag: (b) => {
+          const id = b.dataset.id;
+          if (sel.has(id)) sel.delete(id); else if (sel.size < 3) sel.add(id); else { G.audio.sfx('error'); return; }
+          $$('[data-a=tag]', el).forEach((x) => x.classList.toggle('on', sel.has(x.dataset.id)));
+        },
+        pub: () => {
+          stopT(); closeOverlay(el);
+          const chosen = tags.filter((t) => sel.has(t.id));
+          const tagMult = 1 + Math.min(0.24, chosen.reduce((a, t) => a + t.v, 0));
+          res({ thumb: styles[si], title: titles[ti], canvas: makeThumb(styles[si].id, game, titles[ti].text), tags: chosen.map((t) => t.label), tagMult, grade });
+        },
       });
     });
   },
@@ -468,89 +440,152 @@ export const Create = {
     closeOverlay(el);
   },
 
-  // ---------------------------------------------------------------- RESULTS
-  async results(out, ctx) {
+
+  // ---------------------------------------------------------------- PREMIERE (live results time-lapse)
+  async premiere(out, ctx) {
     const s = G.s, W = G.world;
-    const { game, content, pub, sponsor, partner } = ctx;
+    const { game, content, pub, sponsor, partner, ed } = ctx;
     W.screens.setMode('main', 'results'); W.screens.setMode('laptop', 'results');
     W.screens.data.views = 0;
     W.shot('deskWide');
+    W.char.play('sitTalk', { restart: true });
+    W.char.setExpression('happy', 3);
+    // persistent live record — the premiere shows its first hours, then it keeps growing in the background
+    const vid = makeVideo(s, {
+      id: uid(), title: pub.title.text, game: game.id, type: content.id, thumb: smallJpeg(pub.canvas), tags: pub.tags,
+      perf: Math.round(ctx.perf * 100), grade: pub.grade, out,
+    });
+    s.videos.unshift(vid);
+    if (s.videos.length > 40) s.videos.length = 40;
+    s.videos.forEach((v, i) => { if (i > 10) v.thumb = null; });
+    const spPay = sponsor ? sponsor.pay : 0;
+    const el = overlay(`<div class="premiere glass">
+      <div class="pm-left">
+        <div class="pm-thumb"></div>
+        <div class="pm-title">${esc(pub.title.text)}</div>
+        <div class="row pm-meta"><span class="grade-pill" data-g="${pub.grade}"><small>Grade</small><b>${pub.grade}</b></span>${genreTags(game, 2)}<span class="chip">${ic(content.icon)}${content.name}</span></div>
+        <div class="pm-tags">${pub.tags.map((t) => `<span>#${esc(t)}</span>`).join('')}</div>
+        <div class="insights"></div>
+      </div>
+      <div class="pm-right">
+        <div class="row pm-head"><span class="live-dot"></span><b>PREMIERE</b><span class="muted">· Vidora Studio</span><span class="grow"></span><span class="pm-clock">0:00</span></div>
+        <div class="pm-big"><span class="pm-views">0</span><small>views</small></div>
+        <canvas class="pm-chart" width="560" height="150"></canvas>
+        <div class="pm-stats">
+          <div><small>${ic('users')}Subscribers</small><b data-k="subs">+0</b></div>
+          <div><small>${ic('dollar')}Revenue</small><b data-k="money">$0</b></div>
+          <div><small>${ic('thumb')}Likes</small><b data-k="likes">0</b></div>
+          <div><small>${ic('message')}Comments</small><b data-k="comments">0</b></div>
+        </div>
+        <div class="ld-bar"><i class="l"></i><i class="d"></i></div>
+        <div class="pm-comments"></div>
+        <div class="row" style="justify-content:flex-end;gap:10px;margin-top:10px">
+          ${spPay ? `<span class="chip good grow" style="justify-content:flex-start">${ic('handshake')}${esc(sponsor.brand)} +${fmtMoney(spPay)}</span>` : ''}
+          <button class="btn ghost small" data-a="ff">${ic('chevron')}Skip</button><button class="btn go big" data-a="ok" disabled>${ic('check')}Continue</button></div>
+      </div></div>`);
+    const tc = pub.canvas; tc.style.width = '100%';
+    $('.pm-thumb', el).appendChild(tc);
+    G.audio.sfx('whoosh');
+    const viewsEl = $('.pm-views', el), clockEl = $('.pm-clock', el);
+    const statEl = (k) => $(`[data-k=${k}]`, el);
+    const chart = $('.pm-chart', el), cx = chart.getContext('2d');
+    const comBox = $('.pm-comments', el), ldL = $('.ld-bar .l', el), ldD = $('.ld-bar .d', el);
+    const pts = [[0, 0]];
+    let ff = false, fanBank = 0;
+    const tot = { subs: 0, money: 0, likes: 0, dislikes: 0, comments: 0 };
+    const drawChart = () => {
+      const w = chart.width, hh = chart.height;
+      cx.clearRect(0, 0, w, hh);
+      cx.strokeStyle = 'rgba(255,255,255,0.07)'; cx.lineWidth = 1;
+      for (let i = 1; i < 4; i++) { cx.beginPath(); cx.moveTo(0, (hh / 4) * i); cx.lineTo(w, (hh / 4) * i); cx.stroke(); }
+      if (pts.length < 2) return;
+      const mx = Math.max(10, out.views * 0.5, ...pts.map((p) => p[1]));
+      const X = (t) => (t / PREMIERE_MIN) * (w - 8) + 4, Y = (v) => hh - 6 - (v / mx) * (hh - 16);
+      const g = cx.createLinearGradient(0, 0, 0, hh); g.addColorStop(0, 'rgba(255,90,95,0.42)'); g.addColorStop(1, 'rgba(255,90,95,0)');
+      cx.fillStyle = g; cx.beginPath(); cx.moveTo(X(pts[0][0]), hh); pts.forEach((p) => cx.lineTo(X(p[0]), Y(p[1]))); cx.lineTo(X(pts[pts.length - 1][0]), hh); cx.fill();
+      cx.strokeStyle = '#ff5a5f'; cx.lineWidth = 3; cx.lineJoin = 'round'; cx.beginPath(); pts.forEach((p, i) => (i ? cx.lineTo(X(p[0]), Y(p[1])) : cx.moveTo(X(p[0]), Y(p[1])))); cx.stroke();
+      const lp = pts[pts.length - 1]; cx.fillStyle = '#fff'; cx.beginPath(); cx.arc(X(lp[0]), Y(lp[1]), 4.5, 0, 7); cx.fill();
+    };
+    const addComment = () => {
+      const c = makeComment({ quality: ctx.perf, trust: pub.thumb.trust * pub.title.trust, game: game.name, name: s.profile.name, views: vid.views, type: content.id, edit: ed.style });
+      const row = h(`<div class="cm ${c.neg ? 'neg' : ''}"><i style="background:${USER_COLORS[Math.floor(Math.random() * USER_COLORS.length)]}">${c.user[0].toUpperCase()}</i><div><b>@${esc(c.user)}</b><span>${emotify(esc(c.text))}</span></div></div>`);
+      comBox.prepend(row);
+      while (comBox.children.length > 4) comBox.lastElementChild.remove();
+    };
+    G.tutorial?.onResults?.(el);
+    bind(el, { ff: () => { ff = true; }, ok: () => {} });
+    // time-lapse: 3 in-game hours over ~7 seconds
+    const D = 7000;
+    let tLast = 0, comT = 0, wasViral = false;
+    await new Promise((r) => {
+      const t0 = performance.now();
+      const f = (now) => {
+        const k = ff ? 1 : clamp((now - t0) / D, 0, 1);
+        const tm = k * PREMIERE_MIN;
+        const d = step(vid, vid.t0 + tm);
+        if (d) {
+          for (const key of Object.keys(tot)) tot[key] += d[key];
+          fanBank += d.subs;
+          if (d.money) G.game.addMoney(d.money);
+        }
+        if (tm - tLast > 4 || k >= 1) { pts.push([tm, vid.views]); tLast = tm; drawChart(); }
+        viewsEl.textContent = fmtInt(vid.views);
+        W.screens.data.views = vid.views;
+        clockEl.textContent = `${Math.floor(tm / 60)}:${String(Math.floor(tm % 60)).padStart(2, '0')}h`;
+        statEl('subs').textContent = '+' + fmt(tot.subs);
+        statEl('money').textContent = fmtMoney(tot.money + (spPay && k >= 1 ? spPay : 0));
+        statEl('likes').textContent = fmt(tot.likes);
+        statEl('comments').textContent = fmt(tot.comments);
+        const lt = Math.max(1, tot.likes + tot.dislikes);
+        ldL.style.width = (tot.likes / lt) * 100 + '%'; ldD.style.width = (tot.dislikes / lt) * 100 + '%';
+        comT -= 1;
+        if (comT <= 0 && tot.comments > 0 && !ff) { addComment(); comT = 26 + Math.random() * 30; if (Math.random() < 0.4) G.audio.sfx('chat', 2); }
+        if (out.viral && !wasViral && k > 0.45) {
+          wasViral = true;
+          const vb = h('<div class="viral-burst"><div class="vb">VIRAL!</div></div>');
+          $('#fx').appendChild(vb); setTimeout(() => vb.remove(), 1900);
+          G.audio.sfx('viral'); W.addShake(1); flash(); G.sdk?.happy();
+          W.vfx.confetti(W.room.st.monitor.clone(), 160, 3);
+          W.char.play('sitWin', { restart: true });
+        }
+        if (k < 1) requestAnimationFrame(f); else r();
+      };
+      requestAnimationFrame(f);
+    });
+    // close the gap so the background accrual continues seamlessly from here
+    vid.t0 -= PREMIERE_MIN;
+    if (!comBox.children.length) addComment();
+    // insights reveal
+    const box = $('.insights', el);
+    for (const [k, i2, txt] of out.insights) { box.appendChild(h(`<span class="chip ${k}">${ic(i2)}${txt}</span>`)); }
+    G.audio.sfx('pop');
     const great = ctx.perf > 0.8 || out.viral;
     W.char.play(great ? 'sitWin' : ctx.perf > 0.5 ? 'sitTalk' : 'sitFail', { restart: true });
     W.char.setExpression(great ? 'happy' : ctx.perf > 0.5 ? 'happy' : 'sad', 3);
-    if (out.viral) {
-      const vb = h('<div class="viral-burst"><div class="vb">VIRAL!</div></div>');
-      $('#fx').appendChild(vb); setTimeout(() => vb.remove(), 1900);
-      G.audio.sfx('viral'); W.addShake(1); flash();
-      G.sdk?.happy();
-      W.vfx.confetti(W.room.st.monitor.clone(), 160, 3);
-    } else if (great) { G.audio.sfx('reward'); W.vfx.confetti(W.room.st.monitor.clone(), 70, 2.2); }
-    const first = Math.round(out.views * 0.75), firstSubs = Math.round(out.subs * 0.8);
-    const spPay = sponsor ? sponsor.pay : 0;
-    const el = overlay(`<div class="results glass">
-      <div class="res-thumb"></div>
-      <div class="col" style="gap:4px">
-        <div class="res-head">${ic('vidora')} Vidora · first hour</div>
-        <div class="res-big">0</div>
-        <div class="row tiny muted" style="font-weight:700;margin-top:-6px">${ic('eye')} views · <span style="color:var(--lime)">${ic('trend')} still climbing</span></div>
-        <div class="insights"></div>
-        <div class="res-stats">
-          <div class="stat subs"><div class="sl">${ic('users')}Subscribers</div><div class="sv" data-k="subs">+0</div></div>
-          <div class="stat money"><div class="sl">${ic('dollar')}Revenue</div><div class="sv" data-k="money">$0</div></div>
-          <div class="stat xp"><div class="sl">${ic('star')}XP</div><div class="sv" data-k="xp">+0</div></div>
-          <div class="stat minor"><div class="sl">${ic('thumb')}Likes</div><div class="sv" data-k="likes">0</div></div>
-          <div class="stat minor"><div class="sl">${ic('message')}Comments</div><div class="sv" data-k="comments">0</div></div>
-          <div class="stat minor"><div class="sl">${ic('eye')}Retention</div><div class="sv" data-k="ret">0%</div></div>
-        </div>
-        ${spPay ? `<div class="chip good" style="margin-top:10px;align-self:flex-start">${ic('handshake')} ${esc(sponsor.brand)} deal complete +${fmtMoney(spPay)}</div>` : ''}
-        <div class="row collect-row" style="margin-top:14px;justify-content:flex-end"><button class="btn go big shine" data-a="ok" disabled>${ic('check')}Collect</button></div>
-      </div></div>`);
-    const tc = pub.canvas; tc.style.width = '100%';
-    $('.res-thumb', el).appendChild(tc);
-    $('.res-thumb', el).appendChild(h(`<div class="res-title">${esc(pub.title.text)}</div>`));
-    $('.res-thumb', el).appendChild(h(`<div class="row" style="margin-top:8px;flex-wrap:wrap">${genreTags(game, 2)}<span class="chip">${ic(content.icon)}${content.name}</span></div>`));
-    G.audio.sfx('whoosh');
-    const big = $('.res-big', el);
-    // counters
-    const views = first;
-    const tick = setInterval(() => { W.screens.data.views = +big.dataset.v || 0; }, 100);
-    await Promise.all([
-      countUp(big, 0, views, 1800, (v) => { big.dataset.v = v; if (Math.random() < 0.3) G.audio.sfx('chat', 2); return fmt(v); }),
-      countUp($('[data-k=subs]', el), 0, firstSubs, 1600, (v) => '+' + fmt(v)),
-      countUp($('[data-k=money]', el), 0, out.money * 0.75 + spPay, 1600, fmtMoney),
-      countUp($('[data-k=xp]', el), 0, out.xp, 1400, (v) => '+' + fmt(v)),
-      countUp($('[data-k=likes]', el), 0, out.likes * 0.75, 1500, fmt),
-      countUp($('[data-k=comments]', el), 0, out.comments * 0.75, 1500, fmt),
-      countUp($('[data-k=ret]', el), 0, out.retention * 100, 1500, (v) => Math.round(v) + '%'),
-      (async () => { const box = $('.insights', el); for (const [k, i2, txt] of out.insights) { await sleep(320); box.appendChild(h(`<span class="chip ${k}">${ic(i2)}${txt}</span>`)); G.audio.sfx('pop'); } })(),
-    ]);
-    clearInterval(tick);
+    if (great && !out.viral) { G.audio.sfx('reward'); W.vfx.confetti(W.room.st.monitor.clone(), 70, 2.2); }
+    $('.pm-head .live-dot', el).classList.add('off');
+    $('.pm-head b', el).textContent = 'LIVE ON VIDORA';
+    statEl('money').textContent = fmtMoney(tot.money + spPay);
     const okBtn = $('[data-a=ok]', el);
-    okBtn.disabled = false;
+    okBtn.disabled = false; okBtn.classList.add('shine');
+    $('[data-a=ff]', el).remove();
     G.tutorial?.onResults?.(el);
     await new Promise((r) => bind(el, { ok: r }));
-    // apply rewards
     const from = okBtn.getBoundingClientRect();
     const fp = { x: from.left + from.width / 2, y: from.top };
-    const subsNow = firstSubs, moneyNow = Math.round(out.money * 0.75) + spPay;
-    G.game.addFans('vid', subsNow, fp);
-    G.game.addMoney(moneyNow, fp);
-    const xpGot = G.game.addXP(out.xp, fp);
+    if (fanBank > 0) G.game.addFans('vid', fanBank, fp);
+    if (spPay) G.game.addMoney(spPay, fp);
+    G.game.addXP(out.xp, fp);
     G.game.useBuff('xp2'); G.game.useBuff('wellfed');
-    // cross-platform spill
-    if (s.fans.blip > 0 || out.viral) G.game.addFans('blip', Math.round(subsNow * 0.12), null, true);
-    s.stats.videos++; s.stats.views += views; s.stats.likes += out.likes;
-    if (!s.stats.best || views > s.stats.best.views) s.stats.best = { views, title: pub.title.text };
-    s.videos.unshift({ id: uid(), title: pub.title.text, game: game.id, type: content.id, views, subs: subsNow, money: moneyNow, likes: out.likes, day: s.clock.day, perf: Math.round(ctx.perf * 100), viral: out.viral, thumb: smallJpeg(pub.canvas),
-      tailLeft: out.tail + (out.views - views), conv: out.subs / Math.max(1, out.views), rpm: out.money / Math.max(1, out.views) });
-    if (s.videos.length > 40) s.videos.length = 40;
-    s.videos.forEach((v, i) => { if (i > 10) v.thumb = null; });
+    if (s.fans.blip > 0 || out.viral) G.game.addFans('blip', Math.round(out.subs * 0.08), null, true);
+    s.stats.videos++; s.stats.views += vid.views; s.stats.likes += tot.likes;
+    if (!s.stats.best || vid.V > s.stats.best.views) s.stats.best = { views: vid.V, title: pub.title.text };
     if (sponsor) G.meta.completeDeal(sponsor);
     if (out.viral) s.clips++;
     bus.emit('q', { evt: 'video', n: 1, tags: game.tags });
     if (game.tags.includes(G.game.trend().hot) || out.insights.some((i) => i[2] === 'Trending topic')) bus.emit('q', { evt: 'trendvid', n: 1 });
     if (ctx.perf >= 0.9 || out.viral) bus.emit('q', { evt: 'great', n: 1 });
-    bus.emit('video:done', { out, viral: out.viral });
+    bus.emit('video:done', { out, viral: out.viral, vid });
     G.audio.sfx('cash');
     closeOverlay(el);
     W.char.play('sit'); W.char.setExpression('happy', 1.5);
@@ -559,3 +594,14 @@ export const Create = {
     G.meta.maybeTeaser(out.viral || great);
   },
 };
+
+// Tag suggestions for the publish step. Relevant tags help discovery; the trending tag only helps if it fits.
+function makeTags(game, content, tr) {
+  const out = [{ id: 'game', label: game.name.replace(/[^A-Za-z0-9]/g, ''), v: 0.06, def: true }];
+  for (const t of game.tags) out.push({ id: 'g_' + t, label: GENRES[t].name, v: t === tr.hot ? 0.12 : t === tr.rising ? 0.08 : 0.05, hot: t === tr.hot });
+  out.push({ id: 'type', label: content.name.replace(/[^A-Za-z0-9]/g, ''), v: 0.04 });
+  if (!game.tags.includes(tr.hot)) out.push({ id: 'hot', label: GENRES[tr.hot].name, v: -0.04, hot: true });
+  out.push({ id: 'gaming', label: 'Gaming', v: 0.02 });
+  out.push({ id: 'viral', label: 'GoViral', v: -0.03 });
+  return out;
+}

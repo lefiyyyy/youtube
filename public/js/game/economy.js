@@ -3,6 +3,7 @@ import { GEAR } from '../data/gear.js';
 import { decorById, THEMES, HOMES } from '../data/decor.js';
 import { GENRE_IDS } from '../data/games.js';
 import { clamp, seeded } from '../core/util.js';
+import { dripOf } from '../data/clothes.js';
 
 // Reach coefficients (tuned with tools/sim.mjs)
 export const TUNE = { RV: 2.0, EV: 0.6, RS: 0.7, ES: 0.62, RB: 0.4, EB: 0.64, RL: 0.45, MP: 0.7, CONV: 0.05, RPM: 0.17, RPMK: 8000, RPMP: 0.45 };
@@ -83,6 +84,7 @@ export function videoOutcome(s, p) {
   let M = p.content.views * gm.m * Q * perf * hm.m * nm.m * ctr * home * (ev.viewMult || 1) * collab;
   if (p.content.trendy && gm.tags.includes('trending')) M *= p.content.trendy;
   if (p.focus) M *= 1.15;
+  if (p.tagMult) M *= p.tagMult;
   if (p.affinity) M *= 1 + 0.25 * p.affinity.k;
   let views = reach * Math.pow(M, T.MP) * (0.88 + Math.random() * 0.3) * boost;
   let viral = false;
@@ -94,7 +96,8 @@ export function videoOutcome(s, p) {
   const subs = Math.round(views * conv);
   const likes = Math.round(views * (0.05 + retention * 0.06));
   const comments = Math.round(views * 0.012 * (0.6 + p.perf));
-  const rpm = T.RPM * Math.pow(1 + views / T.RPMK, -T.RPMP) * (p.partnerMult || 1) * p.content.money * (ev.moneyMult || 1);
+  const dislikes = Math.round(likes * clamp(0.02 + (1 - trust) * 0.25 + (1 - retention) * 0.08, 0.01, 0.4));
+  const rpm = T.RPM * Math.pow(1 + views / T.RPMK, -T.RPMP) * (p.partnerMult || 1) * p.content.money * (ev.moneyMult || 1) * (1 + (s.skills?.business || 0) * 0.03);
   const money = Math.round(views * rpm);
   const xp = Math.round(p.content.xp * (1 + 0.12 * (lvl - 1)) * (0.7 + p.perf * 0.6) * (viral ? 1.5 : 1));
   const tail = Math.round(views * 0.4 * (p.content.tail || 1));
@@ -119,7 +122,7 @@ export function videoOutcome(s, p) {
   if (subs > views * 0.07) ins.push(['good', 'users', 'Followers spike']);
   // keep the very first upload's feedback encouraging
   const shown = n === 0 ? ins.filter((i) => i[0] !== 'bad') : ins;
-  return { views, subs, likes, comments, money, xp, tail, retention, viral, insights: shown.slice(0, 5), quality: Q, score: st.score };
+  return { views, subs, likes, dislikes, comments, money, xp, tail, retention, viral, insights: shown.slice(0, 5), quality: Q, score: st.score };
 }
 
 // ---------------------------------------------------------------- STREAM
@@ -135,7 +138,7 @@ export function streamBase(s, p) {
   const P = Math.pow;
   const T = TUNE;
   const base = (5 + 2.5 * s.level + T.RS * P(s.fans.pulse, T.ES) + 0.12 * P(s.fans.vid, 0.62) + 0.1 * P(s.fans.blip, 0.6) + 0.08 * P(s.fans.lumo, 0.6))
-    * Math.pow(gm.m * Qs * hm.m * nm.m * HOMES[s.home].viewMult * (ev.streamMult || 1), T.MP) * (p.announced ? 1.35 : 1) * boost;
+    * Math.pow(gm.m * Qs * hm.m * nm.m * HOMES[s.home].viewMult * (ev.streamMult || 1), T.MP) * (p.announced ? 1.35 : 1) * boost * (1 + (s.skills?.charisma || 0) * 0.035);
   return { base, Qs, st, gm, hm, nm, boost };
 }
 
@@ -160,7 +163,7 @@ export function socialOutcome(s, type, fatigue) {
   let gain, plat;
   if (t.lumo) {
     plat = 'lumo';
-    const vibeK = type === 'setup' ? 0.6 + st.vibeScore / 100 : 0.8 + st.cq / 30;
+    const vibeK = type === 'setup' ? 0.6 + st.vibeScore / 100 : type === 'outfit' ? (0.75 + st.cq / 30) * (1 + dripOf(s.profile) * 0.015) : 0.8 + st.cq / 30;
     gain = (10 + 2 * s.level + TUNE.RL * Math.pow(s.fans.lumo, TUNE.EB) + 0.12 * Math.pow(s.fans.blip, 0.62) + 0.06 * Math.pow(s.fans.vid, 0.62)) * t.mult * vibeK * fresh;
   } else {
     plat = 'blip';
@@ -182,5 +185,5 @@ export function socialOutcome(s, type, fatigue) {
 
 export function dealPay(s, mult, dealMult = 1, manager = false) {
   const power = totalFans(s);
-  return Math.round(((60 + 1.2 * Math.pow(power, 0.75) + s.level * 30) * mult * dealMult * (manager ? 1.35 : 1)) / 5) * 5;
+  return Math.round(((60 + 1.2 * Math.pow(power, 0.75) + s.level * 30) * mult * dealMult * (manager ? 1.35 : 1) * (1 + (s.skills?.business || 0) * 0.06)) / 5) * 5;
 }

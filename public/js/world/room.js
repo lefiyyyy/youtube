@@ -1,7 +1,7 @@
 // Room / home builder: walls, windows, furniture, gear rig, decor slots, stations and nav.
 import * as THREE from 'three';
 import { mat, umat, glow, rbox, box, cyl, sph, plane, circle, at, group, shadows, canvasTex, disposeObj } from './kit.js';
-import { woodFloor, marble, tiles, brick, paint } from './textures.js';
+import { woodFloor, marble, tiles, brick, paint, fabric } from './textures.js';
 import * as F from './furniture.js';
 import { NavGrid } from './nav.js';
 import { THEMES, HOMES, decorById } from '../data/decor.js';
@@ -149,11 +149,6 @@ export class Room {
     fmap.repeat.set(W / (th.floor === 'tile' ? 1.6 : th.floor === 'marble' ? 2.4 : 1.7), D / (th.floor === 'tile' ? 1.6 : th.floor === 'marble' ? 2.4 : 1.7));
     const floor = at(box(W, 0.06, D, fm), r, 0, -0.03, 0);
     floor.receiveShadow = true;
-    // slab
-    const slabM = mat('#1b1c2b', { rough: 0.8 });
-    at(rbox(W + t + 0.06, 0.3, D + t + 0.06, 0.03, slabM), r, -t / 2, -0.21, -t / 2);
-    at(box(W + t + 0.07, 0.012, 0.012, glow(th.accent, 2.2)), r, -t / 2, -0.07, D / 2 + 0.03).userData.noShadow = true;
-    at(box(0.012, 0.012, D + t + 0.07, glow(th.accent, 2.2)), r, W / 2 + 0.03, -0.07, -t / 2).userData.noShadow = true;
     // walls
     const wallMap = paint(th.wall);
     const wm = mat('#ffffff', { rough: 0.92, map: wallMap });
@@ -164,17 +159,37 @@ export class Room {
     if (L.door.wall === 'back') holesBack.push({ c: L.door.x, w: 0.94, y: 0, h: 2.12 });
     const holesLeft = L.windows.filter((w) => w.wall === 'left').map((w) => ({ c: w.z, w: w.w, y: w.y, h: w.h }));
     if (L.door.wall === 'left') holesLeft.push({ c: L.door.z, w: 0.94, y: 0, h: 2.12 });
-    this.wallBack = this.wall(-W / 2 - t, W / 2, H, t, holesBack, backM, capM, 'x', -D / 2 - t / 2);
+    this.wallBack = this.wall(-W / 2 - t, W / 2 + t, H, t, holesBack, backM, capM, 'x', -D / 2 - t / 2);
     this.wallLeft = this.wall(-D / 2, D / 2, H, t, holesLeft, wm, capM, 'z', -W / 2 - t / 2);
+    // the camera lives inside the room: close it with right + front walls and a ceiling (no shadows so daylight still reads)
+    const sideM = mat('#ffffff', { rough: 0.92, map: paint(th.wall) });
+    const holesRight = L.sideWindow ? [{ c: L.sideWindow.z, w: L.sideWindow.w, y: L.sideWindow.y, h: L.sideWindow.h }] : [];
+    const wr = this.wall(-D / 2, D / 2, H, t, holesRight, sideM, capM, 'z', W / 2 + t / 2);
+    const wf = this.wall(-W / 2 - t, W / 2 + t, H, t, [], sideM, capM, 'x', D / 2 + t / 2);
+    const ceilM = mat(th.ceiling || '#f3efe8', { rough: 0.95 });
+    const ceil = at(box(W + 2 * t, 0.08, D + 2 * t, ceilM), r, 0, H + 0.04, 0);
+    for (const o of [wr, wf, ceil]) o.traverse((m) => { m.userData.noShadow = true; });
+    // flush ceiling light
+    const fx = group(r, 0.3, H, 0.3);
+    at(cyl(0.3, 0.34, 0.05, mat('#e9e6e1', { rough: 0.4 }), 32), fx, 0, -0.025, 0);
+    this.ceilLamp = at(cyl(0.27, 0.27, 0.012, umat('#fff', { emissive: '#fff1dc', ei: 0.4 }), 32), fx, 0, -0.054, 0);
+    fx.traverse((m) => { m.userData.noShadow = true; });
+    // crown molding
+    const crownM = mat(th.trim, { rough: 0.6 });
+    for (const [x, z, w, d] of [[0, -D / 2 + 0.02, W, 0.04], [0, D / 2 - 0.02, W, 0.04], [-W / 2 + 0.02, 0, 0.04, D], [W / 2 - 0.02, 0, 0.04, D]]) at(box(w, 0.06, d, crownM), r, x, H - 0.03, z).userData.noShadow = true;
     // baseboards
     const trimM = mat(th.trim, { rough: 0.5 });
     at(box(W, 0.1, 0.025, trimM), r, 0, 0.05, -D / 2 + 0.012);
     at(box(0.025, 0.1, D, trimM), r, -W / 2 + 0.012, 0.05, 0);
+    at(box(0.025, 0.1, D, trimM), r, W / 2 - 0.012, 0.05, 0);
+    at(box(W, 0.1, 0.025, trimM), r, 0, 0.05, D / 2 - 0.012);
     // accent paint band on back wall (two-tone)
     if (L.backWall === 'paint') {
       const band = mat('#ffffff', { rough: 0.92, map: paint(th.wall2) });
       for (const seg of this.solidSegments(-W / 2, W / 2, holesBack.filter((h) => h.y < 1.0))) at(box(seg[1] - seg[0], 1.0, 0.012, band), r, (seg[0] + seg[1]) / 2, 0.5, -D / 2 + 0.006);
       at(box(W, 0.035, 0.03, trimM), r, 0, 1.0, -D / 2 + 0.015);
+      at(box(0.012, 1.0, D, band), r, W / 2 - 0.006, 0.5, 0);
+      at(box(0.03, 0.035, D, trimM), r, W / 2 - 0.015, 1.0, 0);
     }
     // windows + skyline backdrop
     this.windowMeshes = [];
@@ -287,7 +302,11 @@ export class Room {
     at(bed, r, L.bed.x, 0, L.bed.z, 0, L.bed.ry, 0);
     this.addInteract('bed', bed, 'Bed', 'bed');
     const bW = bed.userData.W, bL = bed.userData.L;
-    this.st.bed = { x: L.bed.x + bW / 2 + 0.45, z: L.bed.z + 0.1, ry: -PI / 2, lie: { x: L.bed.x - (bW > 1.2 ? bW / 4 : 0), y: 0.5, z: L.bed.z - bL / 2 + 0.45 + 0.65, ry: PI } };
+    // lying spot: feet toward the foot end, head on the pillow (character's head points along local -z when lying)
+    const lieX = L.bed.x - (bW > 1.2 ? bW / 4 : 0);
+    this.st.bed = { x: L.bed.x + bW / 2 + 0.45, z: L.bed.z + 0.1, ry: -PI / 2, lie: { x: lieX, y: 0.59, z: L.bed.z - bL / 2 + 0.26 + 1.42, ry: 0 } };
+    this.blanket = at(rbox(Math.min(bW - 0.08, 0.86), 0.2, 1.18, 0.08, mat(th.fabric2, { rough: 0.95, map: fabric('#ffffff') })), r, lieX, 0.6, L.bed.z - bL / 2 + 0.26 + 1.42 - 0.5);
+    this.blanket.visible = false;
     this.obst = [{ x: L.bed.x, z: L.bed.z, hx: bW / 2 + 0.04, hz: bL / 2 + 0.03 }];
     // nightstand
     const ns = F.buildNightstand(th);
@@ -584,6 +603,15 @@ export class Room {
     for (const k of ['desk', 'fridge', 'counter', 'bed', 'mirror', 'door', 'sofa']) if (this.st[k]) nav.clearCircle(this.st[k].x, this.st[k].z, 0.22);
     this.nav = nav;
   }
+
+  // open floor spot for the character creator / wardrobe close-ups
+  creatorSpot() {
+    const cands = [[0.55, 0.75], [0.9, 1.0], [0.2, 1.1], [1.3, 0.6]];
+    for (const [x, z] of cands) { const [ci, cj] = this.nav.toCell(x, z); if (!this.nav.blocked(ci, cj)) return new THREE.Vector3(x, 0, z); }
+    return this.randomFreePoint();
+  }
+  // where the room camera sits (inside the front-right corner, near the ceiling)
+  camCorner() { return new THREE.Vector3(this.W / 2 - 0.28, this.H - 0.32, this.D / 2 - 0.28); }
 
   randomFreePoint() {
     for (let i = 0; i < 40; i++) {

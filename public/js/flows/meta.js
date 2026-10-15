@@ -15,6 +15,7 @@ import { gameById, GENRES } from '../data/games.js';
 import { BUFFS } from '../data/food.js';
 import { totalFans, setupStats, dealPay } from '../game/economy.js';
 import { npcPortrait } from './thumbs.js';
+import { dripOf } from '../data/clothes.js';
 import { fmt, fmtMoney, clamp, sleep, dayIndex, msToNextDay, fmtDuration, seeded, now, uid, pick } from '../core/util.js';
 
 const center = () => ({ x: innerWidth / 2, y: innerHeight / 2 });
@@ -34,7 +35,7 @@ export function grant(item, from = center()) {
     case 'sparks': G.game.addSparks(item.amount, from); break;
     case 'buff': G.game.addBuff(item.buff, item.uses); toast(`${BUFFS[item.buff].name} x${item.uses}`, { icon: BUFFS[item.buff].icon, color: 'var(--lime)', sub: BUFFS[item.buff].desc }); break;
     case 'decor': G.shop.grantDecor(item.item, true); break;
-    case 'cosmetic': if (!s.cosmetics.includes(item.item)) s.cosmetics.push(item.item); toast(`Unlocked: <b>${COSMETICS[item.item].name}</b>`, { icon: 'sparkle', color: 'var(--amber)' }); if (COSMETICS[item.item].type === 'overlay' && !s.overlay) s.overlay = item.item; break;
+    case 'cosmetic': if (!s.cosmetics.includes(item.item)) s.cosmetics.push(item.item); if (COSMETICS[item.item].type === 'outfit' && !s.wardrobe.includes(item.item)) s.wardrobe.push(item.item); toast(`Unlocked: <b>${COSMETICS[item.item].name}</b>`, { icon: 'sparkle', color: 'var(--amber)' }); if (COSMETICS[item.item].type === 'overlay' && !s.overlay) s.overlay = item.item; break;
     case 'game': if (!s.games.includes(item.item)) s.games.push(item.item); toast(`New game: <b>${gameById(item.item).name}</b>`, { icon: 'gamepad', color: 'var(--cyan)' }); break;
     case 'theme': if (!s.themes.includes(item.item)) s.themes.push(item.item); toast(`Room style unlocked: <b>${THEMES[item.item].name}</b>`, { icon: 'paint', color: 'var(--pink)', sub: 'Apply it in Shop > Style' }); break;
     case 'mega': G.game.addMoney(item.amount, from); G.game.addSparks(item.sparks, from); grant({ kind: 'cosmetic', item: item.item }, from); break;
@@ -65,13 +66,14 @@ export const Meta = {
       const unlocks = G.game.unlocksFor(L);
       const newTitle = careerTitle(L) !== careerTitle(L - 1) ? careerTitle(L) : null;
       const bonus = { money: 60 + L * 45, sparks: 3 + Math.floor(L / 3) };
+      s.skillPts = (s.skillPts || 0) + 2;
       G.audio.sfx('levelup');
       W.vfx.confetti(W.char.root.position.clone().add(new THREE.Vector3(0, 1.6, 0)), 180, 3);
       if (G.flow == null) { W.char.play('celebrate', { restart: true }); W.char.setExpression('happy', 3); }
       G.sdk?.happy();
       const body = h(`<div class="lvlup"><div class="burst"></div><div class="ln">${L}</div><h2>Level up!</h2>${newTitle ? `<div class="chip gold" style="position:relative;font-size:15px;padding:7px 14px">${ic('crown')}New title: ${newTitle}</div>` : `<div class="muted" style="position:relative;font-weight:700">${careerTitle(L)}</div>`}
         ${unlocks.length ? `<div class="unlocks">${unlocks.slice(0, 8).map((u, i) => `<div class="unlock" style="animation-delay:${0.15 + i * 0.08}s"><div class="ui2" style="background:${u.color}">${ic(u.icon)}</div>${esc(u.text)}</div>`).join('')}</div>` : ''}
-        <div class="row" style="position:relative;justify-content:center;margin:14px 0 6px">${rewardChips(bonus)}</div>
+        <div class="row" style="position:relative;justify-content:center;margin:14px 0 6px">${rewardChips(bonus)}<span class="chip violet" style="font-size:15px;padding:8px 14px">${ic('star')}+2 skill points</span></div>
         <button class="btn primary big shine" data-a="ok" style="position:relative;margin-top:8px">${ic('check')}Awesome</button></div>`);
       const m = modal({ body, size: 'md', noClose: true, onClose: res });
       bind(body, { ok: (b) => { const r = b.getBoundingClientRect(); G.game.addMoney(bonus.money, { x: r.left + r.width / 2, y: r.top }); G.game.addSparks(bonus.sparks, { x: r.left + r.width / 2, y: r.top }); m.close(); setTimeout(() => W.char.clip === 'celebrate' && W.char.play('idle'), 300); } });
@@ -352,7 +354,8 @@ export const Meta = {
         <div class="tiny muted" style="margin-top:10px;font-weight:600">${ic('info')} Platforms feed each other: big Vidora channels draw stream viewers, clips grow Blip, Lumo raises deal pay.</div></div>
       ${adv ? `<div class="card" style="padding:14px"><b class="display">Audience loves</b>${gv.length ? gv.map(([g, v]) => `<div class="row" style="margin-top:8px"><span class="gtag" style="--gc:${GENRES[g].color};width:110px">${ic(GENRES[g].icon)}${GENRES[g].name}</span><div class="bar grow" style="--c1:${GENRES[g].color};--c2:${GENRES[g].color}"><i style="width:${(v / gmax) * 100}%"></i></div><b style="width:60px;text-align:right">${fmt(v)}</b></div>`).join('') : '<div class="muted tiny">Upload videos to see insights.</div>'}
         <div class="row" style="margin-top:10px;flex-wrap:wrap"><span class="chip good">${ic('clock')}Best upload time: 6–11 PM</span><span class="chip info">${ic('heart')}Community mood ${Math.round(s.mood)}</span></div></div>` : `<div class="chip" style="align-self:flex-start">${ic('lock')}Advanced analytics at level 7</div>`}
-      <div class="card" style="padding:14px"><b class="display">Recent uploads</b><div style="margin-top:8px">${s.videos.slice(0, 6).map((v) => `<div class="vid-row">${v.thumb ? `<img src="${v.thumb}">` : `<img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 9'%3E%3Crect width='16' height='9' fill='%232a2850'/%3E%3C/svg%3E">`}<div class="grow"><div class="vt">${esc(v.title)}</div><div class="row tiny muted" style="font-weight:700;margin-top:3px">${ic('eye')}${fmt(v.views)} · ${ic('users')}+${fmt(v.subs)} · ${v.perf}%${v.viral ? ` <span class="chip hot" style="padding:1px 6px">${ic('flame')}Viral</span>` : ''}</div></div></div>`).join('') || '<div class="muted tiny">No uploads yet.</div>'}</div></div></div>`);
+      <div class="card" style="padding:14px"><div class="row" style="justify-content:space-between"><b class="display">Your videos</b><span class="tiny muted" style="font-weight:600">${s.videos.length} uploads · live stats</span></div><div class="vids" style="margin-top:8px">${s.videos.slice(0, 12).map((v) => `<div class="vid-row">${v.thumb ? `<img src="${v.thumb}">` : `<img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 9'%3E%3Crect width='16' height='9' fill='%23252733'/%3E%3C/svg%3E">`}<div class="grow" style="min-width:0"><div class="vt">${v.V !== undefined && v.views < v.V * 0.995 ? '<span class="live-dot" style="display:inline-block;margin-right:6px"></span>' : ''}${esc(v.title)}</div>
+          <div class="vstats">${v.grade ? `<span class="grade-pill" data-g="${v.grade}"><b>${v.grade}</b></span>` : ''}<span>${ic('eye')}${fmt(v.views)}</span><span>${ic('thumb')}${fmt(v.likes || 0)}</span><span class="dl">${ic('thumb')}${fmt(v.dislikes || 0)}</span><span>${ic('message')}${fmt(v.comments || 0)}</span><span style="color:var(--pink2)">${ic('users')}+${fmt(v.subs)}</span><span style="color:var(--lime)">${fmtMoney(v.money || 0)}</span>${v.viral ? `<span class="chip hot" style="padding:1px 6px">${ic('flame')}Viral</span>` : ''}</div></div></div>`).join('') || '<div class="muted tiny">No uploads yet.</div>'}</div></div></div>`);
     modal({ title: 'Creator Studio', sub: `${esc(s.profile.name)} · ${careerTitle(s.level)}`, icon: 'chart', iconBg: 'linear-gradient(135deg,#ff5a5f,#d42459)', body, size: 'lg' });
     // chart
     const c = $('canvas', body), x = c.getContext('2d');
@@ -367,6 +370,22 @@ export const Meta = {
     x.strokeStyle = '#ff4f8b'; x.lineWidth = 5; x.lineJoin = 'round'; x.beginPath(); pts.forEach((p, i) => (i ? x.lineTo(p[0], p[1]) : x.moveTo(p[0], p[1]))); x.stroke();
     const lp = pts[pts.length - 1]; x.fillStyle = '#fff'; x.beginPath(); x.arc(lp[0], lp[1], 8, 0, 7); x.fill();
     x.fillStyle = 'rgba(255,255,255,0.6)'; x.font = '600 20px Outfit'; x.fillText(fmt(mx), 4, pad + 6);
+  },
+
+  // Returning player summary: uploads kept running while away
+  awaySummary(got, awayH) {
+    return new Promise((res) => {
+      const s = G.s;
+      const top = [...s.videos].sort((a, b) => b.views - a.views)[0];
+      const body = h(`<div class="away">
+        <div class="aw-h"><div class="aw-ic">${ic('vidora')}</div><div><h2>While you were away</h2><div class="muted tiny" style="font-weight:600">${awayH >= 1 ? `${Math.floor(awayH)}h` : `${Math.max(1, Math.round(awayH * 60))} min`} · your uploads kept working</div></div></div>
+        <div class="aw-k"><div><small>${ic('eye')}Views</small><b>+${fmt(got.views)}</b></div><div><small>${ic('users')}Subscribers</small><b>+${fmt(got.subs)}</b></div><div><small>${ic('dollar')}Revenue</small><b>${fmtMoney(got.money)}</b></div></div>
+        ${top ? `<div class="vid-row" style="margin-top:12px">${top.thumb ? `<img src="${top.thumb}">` : ''}<div class="grow"><div class="vt">${esc(top.title)}</div><div class="tiny muted" style="font-weight:700">${ic('eye')} ${fmt(top.views)} views · top video</div></div></div>` : ''}
+        <button class="btn go big" data-a="ok" style="width:100%;margin-top:14px">${ic('check')}Nice</button></div>`);
+      const m = modal({ body, size: 'sm', onClose: res });
+      G.audio.sfx('reward');
+      bind(body, { ok: () => m.close() });
+    });
   },
 
   // ---------------------------------------------------------------- COLLABS / TEAM
@@ -393,14 +412,15 @@ export const Meta = {
     const body = h(`<div class="col" style="gap:14px">
       <div class="row" style="gap:16px"><div class="avatar" style="width:96px;height:96px;--p:${(s.xp / xpForLevel(s.level)) * 100}"><div class="face"><img src="${G.ui.hud.portraitURL || ''}"></div><div class="lvl">${s.level}</div></div>
         <div class="grow"><div class="display" style="font-size:28px">${esc(s.profile.name)}</div><div style="color:var(--amber);font-weight:700">${s.profile.title || careerTitle(s.level)}</div><div class="bar" style="margin-top:8px;--c1:var(--amber);--c2:#ffe39a"><i style="width:${(s.xp / xpForLevel(s.level)) * 100}%"></i></div><div class="tiny muted" style="margin-top:4px;font-weight:700">${fmt(s.xp)} / ${fmt(xpForLevel(s.level))} XP to level ${s.level + 1}</div></div>
-        <button class="btn ghost small" data-a="style">${ic('shirt')}Style</button></div>
+        <div class="col" style="gap:6px"><button class="btn ghost small" data-a="style">${ic('shirt')}Wardrobe</button><button class="btn ${s.skillPts ? 'cyan' : 'ghost'} small" data-a="skills">${ic('star')}Skills${s.skillPts ? ` <span class="price">${s.skillPts}</span>` : ''}</button></div></div>
+      <div class="skill-mini">${['gaming', 'editing', 'charisma', 'business'].map((k) => `<div><small>${k[0].toUpperCase() + k.slice(1)}</small><b>${s.skills?.[k] || 0}</b></div>`).join('')}<div><small>Style</small><b>${dripOf(s.profile)}</b></div><div><small>Friends</small><b>${Object.values(s.friends || {}).filter((v) => v >= 6).length}</b></div></div>
       <div class="kpis"><div class="kpi"><div class="kh">${ic('film')}Videos</div><div class="kv">${s.stats.videos}</div></div><div class="kpi"><div class="kh">${ic('live')}Streams</div><div class="kv">${s.stats.streams}</div></div><div class="kpi"><div class="kh">${ic('blip')}Posts</div><div class="kv">${s.stats.posts}</div></div><div class="kpi"><div class="kh">${ic('eye')}Peak live</div><div class="kv">${fmt(s.stats.peakViewers)}</div></div></div>
       ${s.stats.best ? `<div class="chip gold" style="align-self:flex-start">${ic('trophy')}Best video: ${esc(s.stats.best.title)} · ${fmt(s.stats.best.views)} views</div>` : ''}
       <div><div class="tiny muted" style="font-weight:800;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">Title</div><div class="opts"><button class="opt ${!s.profile.title ? 'on' : ''}" data-a="title" data-t="">${careerTitle(s.level)}</button>${titles.map((id) => `<button class="opt ${s.profile.title === COSMETICS[id].text ? 'on' : ''}" data-a="title" data-t="${COSMETICS[id].text}">${COSMETICS[id].text}</button>`).join('')}</div></div>
       <div><div class="tiny muted" style="font-weight:800;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">Badges</div><div class="row" style="flex-wrap:wrap">${badges.length ? badges.map((id) => `<span class="chip" style="color:${COSMETICS[id].color};border-color:${COSMETICS[id].color}">${ic('trophy')}${COSMETICS[id].name}</span>`).join('') : '<span class="muted tiny" style="font-weight:600">Win badges from live events.</span>'}</div></div>
       <div><div class="tiny muted" style="font-weight:800;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">Milestones</div><div class="row" style="flex-wrap:wrap">${MILESTONES.map((m) => `<span class="chip ${s.milestones.includes(m.id) ? 'gold' : ''}">${ic(s.milestones.includes(m.id) ? 'trophy' : 'lock')}${m.name} · ${fmt(m.at)}</span>`).join('')}</div></div></div>`);
     const m = modal({ title: 'Profile', icon: 'user', iconBg: 'linear-gradient(135deg,#ffd577,#ffb02e)', body, size: 'md' });
-    bind(body, { title: (b) => { s.profile.title = b.dataset.t || null; m.close(true); this.profile(); }, style: () => { m.close(true); G.life.wardrobe(); } });
+    bind(body, { title: (b) => { s.profile.title = b.dataset.t || null; m.close(true); this.profile(); }, style: () => { m.close(true); G.life.wardrobe(); }, skills: () => { m.close(true); G.out.academy(); } });
   },
 
   // ---------------------------------------------------------------- SETTINGS

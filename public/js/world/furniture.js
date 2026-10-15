@@ -467,7 +467,7 @@ export function buildBed(tier, th, accent) {
   const sheet = mat(th.fabric, { rough: 0.95, map: fabric('#ffffff') });
   const sheet2 = mat(th.fabric2, { rough: 0.95, map: fabric('#ffffff') });
   at(rbox(W + 0.08, 0.26, L + 0.06, 0.03, frameM), g, 0, 0.13, 0);
-  at(rbox(W, 0.2, L - 0.04, 0.07, mat('#f7f5f2', { rough: 0.9 })), g, 0, 0.35, 0.0);
+  at(rbox(W, 0.2, L - 0.04, 0.07, mat('#e4e1ea', { rough: 0.95 })), g, 0, 0.35, 0.0);
   // duvet with slight drape
   at(rbox(W + 0.04, 0.12, L * 0.68, 0.06, sheet), g, 0, 0.42, L * 0.15);
   at(rbox(W + 0.06, 0.06, 0.35, 0.03, sheet2), g, 0, 0.47, -L * 0.17);

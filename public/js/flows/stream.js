@@ -1,5 +1,6 @@
 // Live streaming: pre-live, stinger, real-time chat/viewers/hype with interactions, summary.
 import { G } from '../game/ctx.js';
+import { resolveLook } from '../data/clothes.js';
 import { bus } from '../core/bus.js';
 import { $, $$, h, bind, ic, esc, toast, countUp, floatText, flash } from '../ui/ui.js';
 import { emotify } from '../ui/icons.js';
@@ -67,7 +68,7 @@ export const Stream = {
     W.char.play('sitGame');
     const overlayC = (s.overlay && COSMETICS[s.overlay]?.colors) || [s.profile.accent, '#2fd6ff'];
     W.screens.data.overlay = overlayC;
-    W.screens.data.skin = s.profile.skin; W.screens.data.top = s.profile.top;
+    W.screens.data.skin = s.profile.skin; W.screens.data.top = resolveLook(s.profile).top.color;
     const stt = setupStats(s);
     const L = s.level;
     const acts = [

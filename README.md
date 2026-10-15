@@ -31,24 +31,44 @@ Any static host works too — just serve the `public/` folder (e.g. upload it as
 
 ## How to play
 
-* **Click / tap objects in your room**: desk (create), fridge & counter (kitchen), bed (rest), mirror (style),
-  door (homes & delivery), the cat. Click the floor to walk. Drag to look around, scroll / pinch to zoom.
+* **Create your creator**: boy or girl, skin, hair, signature color and outfit (tops, bottoms, shoes, headwear,
+  eyewear, jewelry). Change it any time at the **mirror** (wardrobe).
+* **Your room** is a real interior (four walls, ceiling, daylight through the windows). Click / tap objects:
+  desk (create), fridge & counter (kitchen), bed (rest), mirror (wardrobe), door, the cat. Click the floor to walk.
+  Drag to look around, scroll / pinch to zoom.
 * **CREATE** opens the creation hub:
-  * **Record Video** — pick a game and a video type, then play the *capture* rhythm minigame (tap when the
-    highlight hits the ring — gold = clutch, red = fail, except in Funny Highlights where bloopers count),
-    cut boring clips in the *edit* minigame, choose a thumbnail and title (Clickbait / Honest / Trendy) and publish.
-  * **Go Live** — stream on Pulse: talk to chat, land Big Plays (timing ring), clip moments, run polls and
-    giveaways, thank donations, ban trolls, welcome raids and ride the hype train.
-  * **Post Social** — Blip (updates, selfies, stream announcements, clips, hot takes, sponsored posts) and,
-    from level 8, Lumo (setup tours, fit checks, food pics, behind the scenes).
+  * **Record Video** — pick a game and a video type. Your creator records it on their own; tap the highlights that
+    pop up (Clutch!, Epic!, LOL…) to capture the best moments. Then choose how to edit — **Quick Cut**, **Clean
+    Edit** or **Pro Edit** (more hours & energy, better quality) — and watch the edit happen automatically.
+    Pick a thumbnail, a title (Clickbait / Honest / Trendy) and up to 3 **tags** (the trending tag only helps if it
+    fits the game), then publish.
+  * **Premiere** — the first hours of the upload play out live: views, likes/dislikes, comments, subscribers and
+    revenue roll in on a real-time chart. Afterwards **every video keeps growing in real time** (a fast first wave,
+    then a long discovery tail): watch the rolling **subscriber counter** and the **latest upload** widget on the HUD,
+    and per-video live stats in the **Creator Studio**.
+  * **Go Live** — stream on Pulse: talk to chat, land Big Plays, clip moments, run polls and giveaways, thank
+    donations, ban trolls, welcome raids and ride the hype train.
+  * **Post Social** — Blip and (level 8+) Lumo posts; Fit Check posts scale with your **style score**.
+* **Shop** — every item has a live 3D preview before you buy it:
+  * **Setup**: PC, monitor, camera, microphone, lighting, chair, desk, keyboard & mouse, internet. Buy any unlocked
+    tier (side-by-side stat comparison with what you have installed); it's installed and visible in your room.
+  * **Decor** (room vibe), **Fashion** (real brands, tried on your own character: Carhartt WIP, Nike, Stüssy, Ralph
+    Lauren, Arc'teryx, Stone Island, Off-White, Moncler, Balenciaga, Rick Owens, Chrome Hearts), **Games** (34 games
+    across 13 genres), **Room** styles and **Homes**.
+* **Go Out**:
+  * **Rooftop Party** (8 PM – 2 AM): walk up to famous creators, chat about topics they love (or hate), compliment
+    their fit, take selfies (Blip followers) and earn hearts. Friends (3 hearts) accept **collab** pitches — free
+    Collab videos with them, no follower requirement.
+  * **Fan Meetup** (1,000+ subscribers): give each fan what they ask for — autograph, selfie, hug or high five.
+  * **Café Shift**: part-time barista minigame for quick cash early on.
+  * **Creator Academy**: Gaming, Editing, Charisma and Business skills (+2 points per level up, or paid courses).
+  * **Mall**: jumps to the fashion shop.
 * **Needs**: hunger and energy drain as you work. Low needs lower your content quality — eat in the kitchen
-  (or order delivery), nap, or sleep to start a new day (your videos keep earning views overnight).
-* **Shop**: gear upgrades (PC, monitors, camera, mic, lighting, chair, desk, peripherals, internet) are all visibly
-  modelled in the room and raise your setup score. Decor raises Room Vibe. Buy games, room styles and homes.
+  (or order delivery), nap, or sleep to start a new day.
 * **Strategy**: trending genres change every in-game day, events boost specific genres, audiences get bored of
   the same game, evening uploads perform better, platforms feed each other (Vidora → Pulse → Blip → Lumo).
 
-Keyboard: `Space` hits moments while recording / Big Play ring; `1–5` trigger stream actions.
+Keyboard: `Space` hits the Big Play ring while streaming; `1–5` trigger stream actions; `Esc` closes panels.
 
 ## Progression & retention systems
 
@@ -63,9 +83,10 @@ Keyboard: `Space` hits moments while recording / Big Play ring; `1–5` trigger 
 * **Homes**: Tiny Bedroom → City Apartment → Creator Loft → Skyline Penthouse.
 * **Late game**: collabs with NPC creators, brand deals, team hires (editor, moderator, manager), trend cycles,
   community mood (fan inbox), mega productions and creator awards.
+* **Skills & friends**: four creator skills (10 levels each) and relationships with nine NPC influencers.
 
 Saves are automatic (localStorage, mirrored to the CrazyGames data module when available). Returning players
-receive the views their videos earned while they were away.
+get a "While you were away" summary of the views, subscribers and revenue their videos earned (capped).
 
 ## Project layout
 
@@ -81,10 +102,11 @@ public/
     core/                 state & saving, event bus, utilities
     data/                 games, content types, gear, decor, food, events, quests, rewards, chat, sponsors
     world/                renderer & camera director, room builder, furniture/gear models, character rig &
-                          animation, animated monitor screens, skyline, particles, navigation
-    game/                 economy formulas, core game controller, tutorial
+                          clothing, animated monitor screens, skyline, particles, navigation, party/meetup venues,
+                          shop item preview renderer
+    game/                 economy formulas, live video performance (real-time views), core controller, tutorial
     flows/                create/video, live stream, social phone, life (kitchen/sleep), shop, meta systems,
-                          character creator, thumbnails
+                          character creator & wardrobe, going out (party, meetup, café job, academy), thumbnails
     ui/                   icon set & UI framework (HUD, modals, toasts, reward fly-ins)
     audio/                procedural SFX + generative lo-fi / synthwave music
 tools/                    dev tooling: Playwright playthroughs, screenshots, balance simulator
@@ -100,6 +122,7 @@ tools/                    dev tooling: Playwright playthroughs, screenshots, bal
 * `node tools/look.mjs 13 21` — high-quality room screenshots at the given in-game hours.
 * `node tools/sim.mjs [runs] ['{"RV":2.0}']` — economy pacing simulator (prints level / fans / money over real minutes).
 * `node tools/check.mjs` — syntax-checks every ES module.
+* `node tools/steps.mjs steps.json [w] [h] [outDir]` — runs a JSON list of browser steps (url / click / eval / waitFor / shot).
 * `node tools/build-artifact.mjs public <outDir>` — packages the game as a single page for a Claude Artifact (inline CSS, Three.js from jsDelivr, fonts from Google Fonts, game modules as supporting files).
 
 Tools expect the server on `http://localhost:8080` and Playwright's Chromium (`npm i playwright` in `tools/` if needed).
@@ -112,4 +135,6 @@ Target pacing from the simulator: first 100 subscribers in ~5 minutes, 1K (Bronz
 * Three.js — MIT (`public/vendor/three/LICENSE`)
 * Bricolage Grotesque, Outfit, Caveat — SIL Open Font License (`public/fonts/OFL-*.txt`)
 * All game code, models, textures, icons, music and sound effects are original and generated procedurally.
-* Platforms, brands, games and creators in the game are fictional.
+* Platforms, sponsor brands, games and creators in the game are fictional. Fashion items carry the names of real
+  clothing brands for flavour only; the game is not affiliated with or endorsed by them, no logos are reproduced,
+  and all brand names live in `public/js/data/clothes.js` so they can be swapped before distribution if required.

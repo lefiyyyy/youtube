@@ -45,6 +45,11 @@ export const LINES = {
     challenge: ['you got this', 'rage incoming :lul:', 'one more try', 'pain arc', 'never giving up :fire:'],
     retro: ['nostalgia :heart:', 'old school :cool:', 'pixels hit different', 'childhood unlocked'],
     multiplayer: ['can i join?', 'squad up', 'invite me pls', 'teammate diff :lul:'],
+    sports: ['GOOOAL :fire:', 'pass it!!', 'top bins :pog:', 'ref is blind lol', 'that keeper tho', 'man of the match'],
+    fighting: ['combo it!', 'block block BLOCK', 'frame perfect :pog:', 'hes spamming lol', 'parry god', 'run it back'],
+    rhythm: ['the beat goes hard :fire:', 'full combo pls', 'hands are cracked :pog:', 'missed one :sad:', 'this song slaps', 'perfect perfect perfect'],
+    puzzle: ['rotate it!', 'hold the long one', 'galaxy brain :cool:', 'set up the combo', 'the stack is scary', 'so satisfying :heart:'],
+    strategy: ['big brain play :cool:', 'save your mana', 'go face!', 'that was a misplay lol', 'trade it', '200 iq :pog:'],
   },
 };
 export const EMOTES = ['pog', 'lul', 'fire', 'heart', 'gg', 'skull', 'clap', 'sad', 'cool', 'cat', 'w'];

@@ -6,6 +6,7 @@ import { UnrealBloomPass } from '../../vendor/three/addons/postprocessing/Unreal
 import { OutputPass } from '../../vendor/three/addons/postprocessing/OutputPass.js';
 import { RoomEnvironment } from '../../vendor/three/addons/environments/RoomEnvironment.js';
 import { Room } from './room.js';
+import { Venue } from './venue.js';
 import { Character } from './character.js';
 import { ScreenManager } from './screens.js';
 import { Skyline, skyParams } from './sky.js';
@@ -207,6 +208,7 @@ export class World {
     this.windowLight.intensity = lerp(0.9, 1.6, dayK);
     this.lampLight.intensity = isNightish ? 1.4 : 0;
     if (this.room?.lampShade) this.room.lampShade.material.emissiveIntensity = isNightish ? 0.9 : 0;
+    if (this.room?.ceilLamp) this.room.ceilLamp.material.emissiveIntensity = isNightish ? 1.6 : 0.3;
     this.accentLight.intensity = ((g.light || 0) >= 2 || this.state?.theme === 'gamer') ? lerp(2.6, 1.0, dayK) : 0;
     this.screenLight.intensity = lerp(1.1, 0.35, dayK);
     this.keyLight.intensity = (g.light || 0) >= 3 ? lerp(2.2, 1.2, dayK) * ((g.light || 0) >= 4 ? 1.3 : 1) : (g.light === 1 || g.light === 2 ? 0.6 : 0);
@@ -223,18 +225,58 @@ export class World {
     ctx.fillStyle = gr; ctx.fillRect(0, 0, 4, 256);
     this.bgTex.needsUpdate = true;
     this.dayK = dayK;
+    if (this.venue) this.venueLighting();
+  }
+
+  // ---------------------------------------------------------------- GOING OUT
+  enterVenue(kind, opts = {}) {
+    if (this.venue) this.exitVenue();
+    this.standUp();
+    this.path = []; this.charMode = 'idle'; this.slide = null; this.turnGoal = null;
+    this.room.root.visible = false;
+    this.marker.visible = false;
+    const v = (this.venue = new Venue(this.scene, kind, opts));
+    if (v.skyMat) { v.skyMat.map = this.sky.tex; v.skyMat.needsUpdate = true; }
+    this._homeHour = this.hour;
+    this.applyTime(kind === 'party' ? 22.5 : 15, true);
+    const sp = v.st.spawn;
+    this.char.root.position.set(sp.x, 0, sp.z);
+    this.char.root.rotation.y = sp.ry;
+    this.char.play('idle');
+    this.shot('venue', null, true);
+    return v;
+  }
+  exitVenue() {
+    const v = this.venue;
+    if (!v) return;
+    this.venue = null;
+    v.dispose();
+    this.room.root.visible = true;
+    this.hovered = null;
+    this.path = []; this.charMode = 'idle';
+    const st = this.room.st.door;
+    this.char.root.position.set(st.x, 0, st.z);
+    this.char.root.rotation.y = st.ry + Math.PI;
+    this.char.play('idle');
+    this.applyTime(this._homeHour ?? this.hour, true);
+    this.shot('room', null, true);
+  }
+  venueLighting() {
+    const party = this.venue.kind === 'party';
+    this.sun.intensity = party ? 0.35 : 0.9;
+    this.sun.color.set(party ? '#8f9cff' : '#fff4e3');
+    this.hemi.intensity = party ? 0.55 : 0.75;
+    this.hemi.color.set(party ? '#6a5cff' : '#dfe7ff');
+    for (const l of [this.roomLight, this.windowLight, this.accentLight, this.screenLight, this.keyLight, this.lampLight]) l.intensity = 0;
+    this.bloom.strength = party ? 0.55 : 0.45;
+    this.renderer.toneMappingExposure = party ? 1.0 : 1.02;
   }
 
   // ---------------------------------------------------------------- CAMERA
-  roomFit() {
-    const r = this.room;
-    const size = Math.max(r.W * 0.92, r.D * 1.15);
-    const aspect = this.W / this.H;
-    const fovR = (this.cam.fov * PI) / 180;
-    let dist = (size * 0.56) / Math.tan(fovR / 2);
-    if (aspect < 1.5) dist *= 1.5 / aspect * 0.92;
-    return dist;
-  }
+  // The room is a closed interior: the main view sits in the front-right corner near the ceiling, other shots
+  // orbit their subject and are kept inside the walls.
+  yawToCorner(T) { const c = this.room.camCorner(); return Math.atan2(c.x - T.x, c.z - T.z); }
+  cornerYaw(p = this.char.root.position) { return this.yawToCorner(p); }
   shot(name, opts = {}, snap = false) {
     this.shotName = name; this.shotOpts = opts;
     const r = this.room;
@@ -242,22 +284,28 @@ export class World {
     const G = this.camGoal;
     this.fixedCam = null;
     G.shift = opts?.shift ?? 0; G.shiftY = opts?.shiftY ?? 0;
-    G.fov = 32;
+    G.fov = 34;
     const dd = r.deskDims;
-    const mobile = this.W / this.H < 1.5;
+    const aspect = this.W / this.H, mobile = aspect < 1.5;
     switch (name) {
-      case 'room':
-        G.target.set(-0.15, 0.55, -0.05);
-        G.yaw = 0.62; G.pitch = 0.6; G.dist = this.roomFit();
+      case 'room': {
+        const c = r.camCorner();
+        const T = V3(-r.W * 0.07, 0.62, -r.D * 0.17);
+        const d = c.clone().sub(T);
+        G.target.copy(T); G.dist = d.length(); G.yaw = Math.atan2(d.x, d.z); G.pitch = Math.asin(d.y / G.dist);
+        // keep roughly the same horizontal coverage on every aspect ratio
+        const hfov = r.W > 9 ? 80 : 84;
+        G.fov = clamp((2 * Math.atan(Math.tan((hfov * PI) / 360) / aspect) * 180) / PI, 44, 72);
         break;
+      }
       case 'desk': {
         G.target.set(dd.x - 0.05, dd.H + 0.22, dd.z + 0.3);
-        G.yaw = 0.98; G.pitch = 0.3; G.dist = mobile ? 3.6 : 3.1; G.fov = 36;
+        G.yaw = 0.98; G.pitch = 0.3; G.dist = mobile ? 3.4 : 3.0; G.fov = 36;
         break;
       }
       case 'deskWide': {
         G.target.set(dd.x + 0.1, dd.H + 0.15, dd.z + 0.35);
-        G.yaw = 0.55; G.pitch = 0.42; G.dist = mobile ? 5.2 : 4.4; G.fov = 34;
+        G.yaw = 0.62; G.pitch = 0.36; G.dist = mobile ? 4.6 : 4.0; G.fov = 38;
         break;
       }
       case 'stream': {
@@ -272,19 +320,19 @@ export class World {
       case 'kitchen': {
         const st = r.st.fridge;
         G.target.set((st.x + r.st.counter.x) / 2, 1.0, (st.z + r.st.counter.z) / 2);
-        G.yaw = 0.6; G.pitch = 0.38; G.dist = 4.6;
+        G.yaw = this.yawToCorner(G.target) + 0.15; G.pitch = 0.3; G.dist = 3.3; G.fov = 40;
         break;
       }
       case 'bed': {
-        const st = r.st.bed;
-        G.target.set(st.lie.x + 0.2, 0.6, st.lie.z + 0.6);
-        G.yaw = 0.7; G.pitch = 0.62; G.dist = 4.2;
+        const l = r.st.bed.lie;
+        G.target.set(l.x, 0.62, l.z - 0.75);
+        G.yaw = this.yawToCorner(G.target) - 0.1; G.pitch = 0.62; G.dist = 2.9; G.fov = 40;
         break;
       }
       case 'char': {
         const p = this.char.root.position;
         G.target.set(p.x, 1.05, p.z);
-        G.yaw = 0.55 + (opts?.yawAdd || 0); G.pitch = 0.18; G.dist = opts?.dist || 3.0; G.fov = 30;
+        G.yaw = this.cornerYaw() + (opts?.yawAdd || 0); G.pitch = 0.18; G.dist = opts?.dist || 3.0; G.fov = 32;
         break;
       }
       case 'creator': {
@@ -299,17 +347,43 @@ export class World {
         G.yaw = this.char.root.rotation.y + 0.25; G.pitch = 0.08; G.dist = 1.2; G.fov = 30;
         break;
       }
+      case 'pair': {
+        // two people talking: frame both from the side that faces the open room
+        const a = opts.a, b = opts.b;
+        G.target.set((a.x + b.x) / 2, 1.2, (a.z + b.z) / 2);
+        const base = Math.atan2(b.x - a.x, b.z - a.z);
+        const area = this.venue || r, c = area.camCorner();
+        const cand = [base + PI / 2, base - PI / 2].map((y) => ({ y, d: Math.hypot(G.target.x + Math.sin(y) * 2.6 - c.x, G.target.z + Math.cos(y) * 2.6 - c.z) }));
+        cand.sort((p, q) => p.d - q.d);
+        G.yaw = cand[0].y + 0.25; G.pitch = 0.16; G.dist = mobile ? 3.0 : 2.7; G.fov = 36;
+        break;
+      }
+      case 'venue': {
+        const v = this.venue;
+        if (!v) break;
+        const c = v.camCorner(), T = v.camTarget();
+        const d = c.clone().sub(T);
+        G.target.copy(T); G.dist = d.length(); G.yaw = Math.atan2(d.x, d.z); G.pitch = Math.asin(d.y / G.dist);
+        G.fov = clamp((2 * Math.atan(Math.tan((78 * PI) / 360) / aspect) * 180) / PI, 40, 68);
+        break;
+      }
     }
     if (snap) {
       Object.assign(this.cam, { yaw: G.yaw, pitch: G.pitch, dist: G.dist, fov: G.fov, shift: G.shift, shiftY: G.shiftY });
       this.cam.target.copy(G.target);
     }
-    if (name !== 'room') { this.camUser.yaw = 0; this.camUser.pitch = 0; this.camUser.zoom = 1; }
+    if (name !== 'room' && name !== 'venue') { this.camUser.yaw = 0; this.camUser.pitch = 0; this.camUser.zoom = 1; }
   }
   headWorld() {
     const v = new THREE.Vector3();
     this.char.hc.getWorldPosition(v);
     return v;
+  }
+  // bounds the camera must stay within (current interior)
+  camBounds() {
+    const a = this.venue || this.room;
+    const m = 0.14;
+    return { x0: -a.W / 2 + m, x1: a.W / 2 - m, z0: -a.D / 2 + m, z1: a.D / 2 - m, y0: 0.25, y1: a.H - 0.1 };
   }
   updateCamera(dt) {
     const C = this.cam, G = this.camGoal;
@@ -331,18 +405,32 @@ export class World {
       this._fixedInit = false;
       cam.layers.enable(1);
       C.target.lerp(G.target, 1 - Math.exp(-k * dt));
-      const uy = this.shotName === 'room' ? this.camUser.yaw : 0, up = this.shotName === 'room' ? this.camUser.pitch : 0;
-      const uz = this.shotName === 'room' ? this.camUser.zoom : 1;
-      C.yaw = damp(C.yaw, G.yaw + uy, k, dt);
-      C.pitch = damp(C.pitch, clamp(G.pitch + up, 0.05, 1.25), k, dt);
-      C.dist = damp(C.dist, G.dist * uz, k, dt);
+      const look = this.shotName === 'room' || this.shotName === 'venue';
+      C.uy = damp(C.uy || 0, look ? this.camUser.yaw : 0, 7, dt);
+      C.up = damp(C.up || 0, look ? this.camUser.pitch : 0, 7, dt);
+      C.uz = damp(C.uz || 1, look ? this.camUser.zoom : 1, 7, dt);
+      C.yaw = damp(C.yaw, G.yaw, k, dt);
+      C.pitch = damp(C.pitch, clamp(G.pitch, 0.02, 1.3), k, dt);
+      C.dist = damp(C.dist, G.dist, k, dt);
       C.fov = damp(C.fov, G.fov, k, dt);
       C.shift = damp(C.shift, G.shift, k, dt);
       C.shiftY = damp(C.shiftY, G.shiftY, k, dt);
       const cp = Math.cos(C.pitch);
       cam.position.set(C.target.x + Math.sin(C.yaw) * cp * C.dist, C.target.y + Math.sin(C.pitch) * C.dist, C.target.z + Math.cos(C.yaw) * cp * C.dist);
-      cam.lookAt(C.target);
-      cam.fov = C.fov;
+      // stay inside the walls: pull the camera toward its target along the view ray
+      if (this.room) {
+        const b = this.camBounds(), T = C.target, P = cam.position;
+        let kk = 1;
+        const lim = (p, t, lo, hi) => { if (p > hi && p !== t) kk = Math.min(kk, (hi - t) / (p - t)); if (p < lo && p !== t) kk = Math.min(kk, (lo - t) / (p - t)); };
+        lim(P.x, T.x, b.x0, b.x1); lim(P.z, T.z, b.z0, b.z1); lim(P.y, T.y, b.y0, b.y1);
+        if (kk < 1) P.lerpVectors(T, P, Math.max(0.08, kk));
+      }
+      // look-around (room view): rotate the view direction around the camera, zoom narrows the lens
+      const dir = C.target.clone().sub(cam.position);
+      const len = dir.length();
+      const yaw = Math.atan2(dir.x, dir.z) + C.uy, pitch = Math.asin(clamp(dir.y / len, -1, 1)) + C.up;
+      cam.lookAt(cam.position.x + Math.sin(yaw) * Math.cos(pitch) * len, cam.position.y + Math.sin(pitch) * len, cam.position.z + Math.cos(yaw) * Math.cos(pitch) * len);
+      cam.fov = C.fov * C.uz;
       if (Math.abs(C.shift) > 0.001 || Math.abs(C.shiftY) > 0.001) cam.setViewOffset(this.W, this.H, -C.shift * this.W, -C.shiftY * this.H, this.W, this.H);
       else cam.clearViewOffset();
     }
@@ -361,7 +449,7 @@ export class World {
     return new Promise((res) => {
       if (this.charMode === 'sit' || this.charMode === 'lie') this.standUp();
       const p = this.char.root.position;
-      this.path = this.room.nav.find(p.x, p.z, x, z).slice(1);
+      this.path = (this.venue || this.room).nav.find(p.x, p.z, x, z).slice(1);
       this.pathRy = ry;
       this.pathDone = res;
       this.charMode = 'walk';
@@ -408,10 +496,11 @@ export class World {
   async lieDown() {
     await this.goTo('bed');
     const l = this.room.st.bed.lie;
-    const p = this.slideTo(l.x, l.z, l.ry, 0.6, l.y - 0.02);
+    const p = this.slideTo(l.x, l.z, l.ry, 0.6, l.y);
     this.char.play('sleep', { blend: 5 });
     this.charMode = 'lie';
     await p;
+    if (this.charMode === 'lie' && this.room.blanket) this.room.blanket.visible = true;
   }
   async sitSofa() {
     const st = this.room.st.sofa;
@@ -426,6 +515,7 @@ export class World {
   powerOn() { this.screens.setMode('main', 'desktop'); this.screens.setMode('laptop', 'desktop'); this.screens.setMode('side', 'chat'); this.screens.setMode('side2', 'analytics'); }
   standUp() {
     if (this.slide) { const r = this.slide.res; this.slide = null; r && r(); }
+    if (this.room?.blanket) this.room.blanket.visible = false;
     if (this.charMode === 'sit' || this.charMode === 'lie') {
       const p = this.char.root.position;
       const back = this.charMode === 'lie' ? this.room.st.bed : null;
@@ -541,15 +631,15 @@ export class World {
       if (pointers.size === 2) {
         const [a, b] = [...pointers.values()];
         const d = Math.hypot(a.x - b.x, a.y - b.y);
-        if (pinch0 > 0 && this.shotName === 'room') this.camUser.zoom = clamp(zoom0 * (pinch0 / d), 0.55, 1.25);
+        if (pinch0 > 0 && this.lookable()) this.camUser.zoom = clamp(zoom0 * (pinch0 / d), 0.6, 1.12);
         return;
       }
       if (down) {
         const dx = e.clientX - down.x, dy = e.clientY - down.y;
         if (Math.hypot(dx, dy) > 8) down.moved = true;
-        if (down.moved && this.shotName === 'room' && this.inputEnabled) {
-          this.camUser.yaw = clamp(down.yaw - dx * 0.004, -0.55, 0.45);
-          this.camUser.pitch = clamp(down.pitch + dy * 0.003, -0.35, 0.35);
+        if (down.moved && this.lookable() && this.inputEnabled) {
+          this.camUser.yaw = clamp(down.yaw + dx * 0.0032, -0.62, 0.62);
+          this.camUser.pitch = clamp(down.pitch + dy * 0.0026, -0.28, 0.32);
         }
       } else if (e.pointerType === 'mouse') this.hover(e);
     });
@@ -561,11 +651,12 @@ export class World {
     el.addEventListener('pointerup', up);
     el.addEventListener('pointercancel', (e) => { pointers.delete(e.pointerId); down = null; });
     el.addEventListener('wheel', (e) => {
-      if (this.shotName !== 'room' || !this.inputEnabled) return;
-      this.camUser.zoom = clamp(this.camUser.zoom * (1 + Math.sign(e.deltaY) * 0.08), 0.55, 1.25);
+      if (!this.lookable() || !this.inputEnabled) return;
+      this.camUser.zoom = clamp(this.camUser.zoom * (1 + Math.sign(e.deltaY) * 0.07), 0.6, 1.12);
       e.preventDefault();
     }, { passive: false });
   }
+  lookable() { return this.shotName === 'room' || this.shotName === 'venue'; }
   setPtr(e) {
     const r = this.canvas.getBoundingClientRect();
     this.ptr.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
@@ -573,12 +664,13 @@ export class World {
   }
   pickInteract() {
     if (!this._meInteract) { this.char.root.userData.interact = 'me'; this._meInteract = { id: 'me', obj: this.char.root, label: 'You', icon: 'user' }; }
-    const objs = [...this.room.interact.map((i) => i.obj), this.char.root];
+    const area = this.venue || this.room;
+    const objs = [...area.interact.map((i) => i.obj), this.char.root];
     const hits = this.ray.intersectObjects(objs, true);
     for (const h of hits) {
       let o = h.object;
       while (o && !o.userData.interact) o = o.parent;
-      if (o) return o === this.char.root ? this._meInteract : this.room.interact.find((i) => i.obj === o);
+      if (o) return o === this.char.root ? this._meInteract : area.interact.find((i) => i.obj === o);
     }
     return null;
   }
@@ -596,7 +688,7 @@ export class World {
     if (it) { bus.emit('world:pick', it.id); return; }
     const p = new THREE.Vector3();
     if (this.ray.ray.intersectPlane(this.floorPlane, p)) {
-      const r = this.room;
+      const r = this.venue || this.room;
       if (Math.abs(p.x) < r.W / 2 - 0.2 && Math.abs(p.z) < r.D / 2 - 0.2) bus.emit('world:floor', { x: p.x, z: p.z });
     }
   }
@@ -704,7 +796,8 @@ export class World {
   update(dt) {
     this.clock += dt;
     this.updateChar(dt);
-    this.room.update(dt);
+    if (this.venue) this.venue.update(dt, this.char.root.position);
+    else this.room.update(dt);
     this.screens.update(dt);
     this.vfx.update(dt);
     if (this.marker.visible) { this.marker.userData.t += dt; const s = 1 + Math.sin(this.marker.userData.t * 6) * 0.1; this.marker.scale.set(s, 1, s); }

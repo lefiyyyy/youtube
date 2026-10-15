@@ -94,15 +94,11 @@ export const Tutorial = {
   },
   onRecord(el) {
     if (!this.active || G.s.stats.videos > 0) return;
-    const tip = h(`<div class="glass" style="position:absolute;left:50%;top:38%;transform:translate(-50%,-50%);padding:16px 22px;border-radius:20px;text-align:center;pointer-events:none;animation:modalIn .4s;z-index:5"><div class="display" style="font-size:22px">Tap when moments hit the ring</div><div class="row" style="justify-content:center;margin-top:8px;gap:14px;font-weight:700;font-size:14px"><span style="color:#7ad7ff">${ic('target')} Normal</span><span style="color:#ffd54a">${ic('star')} Clutch x2</span><span style="color:#ff8f99">${ic('x')} Fail — skip it</span></div></div>`);
+    const tip = h(`<div class="glass" style="position:absolute;left:50%;top:40%;transform:translate(-50%,-50%);padding:14px 20px;border-radius:16px;text-align:center;pointer-events:none;animation:modalIn .4s;z-index:5"><div class="display" style="font-size:20px">Your creator is recording!</div><div style="font-weight:600;font-size:13.5px;margin-top:6px;color:var(--muted)">${ic('target')} Tap the highlights that pop up to capture the best moments</div></div>`);
     el.appendChild(tip);
-    setTimeout(() => tip.remove(), 2600);
+    setTimeout(() => tip.remove(), 2800);
   },
-  onEdit(el) {
-    if (!this.active || G.s.stats.videos > 0) return;
-    $$('.seg.meh, .seg.bad', el).forEach((s) => s.classList.add('hl'));
-    setTimeout(() => $$('.seg', el).forEach((s) => s.classList.remove('hl')), 2500);
-  },
+  onEdit() {},
   onResults(el) { if (this.active) { $('[data-a=ok]', el)?.classList.add('hl'); } },
   onKitchen(body) { if (this.active && this.step.id === 'eat') { $('[data-id=noodles]', body)?.classList.add('hl'); pointAt(null); } },
   onShop(body) {

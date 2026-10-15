@@ -1,6 +1,7 @@
 // Procedural video thumbnails (game art + 3D portrait + bold type).
 import { drawGame } from '../world/screens.js';
 import { G } from '../game/ctx.js';
+import { npcProfile } from '../data/influencers.js';
 
 const portraits = new Map();
 export function portrait(expr) {
@@ -23,7 +24,7 @@ const NPC_HAIR = { luna: 'long', turbo: 'spiky', spooky: 'buzz', nia: 'bob', mik
 const NPC_ACC = { luna: 'catears', turbo: 'cap', spooky: 'glasses', nia: 'headphones', mika: 'none', king: 'beanie' };
 export function npcPortrait(c) {
   if (npcCache.has(c.id)) return npcCache.get(c.id);
-  const prof = { name: c.name, hair: NPC_HAIR[c.id] || 'swoop', hairColor: c.hair, skin: c.skin, eyes: '#3b2a20', outfit: ['hoodie', 'tee', 'jacket', 'tech', 'sweater', 'hoodie'][c.name.length % 5], top: c.color, bottom: '#23253a', accessory: NPC_ACC[c.id] || 'none', accent: c.color };
+  const prof = npcProfile(c.id) || { name: c.name, hair: NPC_HAIR[c.id] || 'swoop', hairColor: c.hair, skin: c.skin, eyes: '#3b2a20', outfit: ['hoodie', 'tee', 'jacket', 'tech', 'sweater', 'hoodie'][c.name.length % 5], top: c.color, bottom: '#23253a', accessory: NPC_ACC[c.id] || 'none', accent: c.color };
   const url = G.world.portrait('happy', 128, 'idle', prof).toDataURL();
   npcCache.set(c.id, url);
   return url;
