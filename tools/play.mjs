@@ -91,11 +91,11 @@ try {
   await shot('live2');
   await wait(20000);
   await shot('live3');
-  await page.waitForSelector('.summary', { timeout: 40000 });
+  await page.waitForSelector('.summary', { timeout: 300000 });
   await wait(2500);
   await shot('summary');
-  await click('.summary [data-a=ok]:not([disabled])', { wait: 2500, timeout: 20000 });
-  for (let i = 0; i < 8; i++) { const b = await page.$('.modal [data-a=ok], .modal [data-a=claim], .modal [data-a=later], .modal [data-x]'); if (b) { await shot('end_modal_' + i); await b.click({ force: true }); await wait(1800); } else await wait(800); }
+  await click('.summary [data-a=ok]:not([disabled])', { wait: 2500, timeout: 120000 });
+  for (let i = 0; i < 8; i++) { const top = '#modals > .modal-wrap:last-child'; const b = await page.$(`${top} [data-a=ok], ${top} [data-a=claim], ${top} [data-a=later], ${top} [data-x]`); if (b) { await shot('end_modal_' + i); await b.click({ force: true }); await wait(1800); } else await wait(800); }
   await shot('end');
   await idle();
   // phone

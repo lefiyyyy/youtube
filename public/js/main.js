@@ -143,7 +143,7 @@ async function boot() {
       s.reminders = s.reminders.filter((k) => k !== cur.key);
       toast(`<b>${EVENTS[cur.id].name}</b> is live! Your reminder`, { icon: 'calendar', color: EVENTS[cur.id].colors[0], dur: 4500 });
     }
-    if (Meta.dailyAvailable()) setTimeout(() => Meta.daily(true), 500);
+    G.game.queue(() => Meta.dailyAvailable() && Meta.daily(true)); // after the away summary, one modal at a time
   }
   addEventListener('visibilitychange', () => {
     if (document.hidden) { save(true); SDK.hold('hidden'); audio.ctx?.suspend(); }

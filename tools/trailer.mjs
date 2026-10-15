@@ -28,7 +28,9 @@ const cdp = await ctx.newCDPSession(page);
 const stepAnims = (dt) => page.evaluate((dt) => {
   for (const a of document.getAnimations()) {
     if (a.__done) continue;
-    if (!a.__cap) { a.__cap = 1; a.pause(); a.currentTime = 0; continue; }
+    // new since the last step: it started somewhere inside this step, so give it one step of progress
+    // (CSS transitions restarted every frame, like a filling bar, would otherwise never move)
+    if (!a.__cap) { a.__cap = 1; a.pause(); a.currentTime = dt; continue; }
     const t = (a.currentTime || 0) + dt, end = a.effect?.getComputedTiming().endTime;
     if (Number.isFinite(end) && t >= end) { a.__done = 1; a.finish(); } else a.currentTime = t; // finish() fires onfinish handlers
   }
@@ -63,7 +65,11 @@ const frame = async () => {
 };
 const DRY = !!process.env.DRY; // DRY=1: one frame per second, to check the choreography quickly
 let live = !process.env.FROM; // FROM=<shot>: fast-forward through the earlier shots (for checking)
-const shot = (name) => { console.log('shot:', name); if (name === process.env.FROM) live = true; };
+let cur = null; // TO=<shot>: stop after that shot (re-shoot a single clip with FROM=x TO=x)
+const shot = (name) => {
+  if (process.env.TO && cur === process.env.TO) throw new Error('STOP');
+  cur = name; console.log('shot:', name); if (name === process.env.FROM) live = true;
+};
 const rec = async (sec, during) => {
   if (!live) { await ff(sec * 1000); return; }
   const t0 = Date.now();
@@ -176,9 +182,9 @@ try {
   await rec(3.6, async (t) => {
     const at = (x) => Math.abs(t - x) < 0.5 / FPS;
     // Big Play, hit right on the ring (ring closes at 160+2*level px/s from 200 to 90)
-    if (at(0.5)) await js(() => document.querySelector('.stream-ui [data-a=play]')?.click());
-    if (at(0.5 + 110 / 188)) await js(() => document.querySelector('.qte')?.dispatchEvent(new PointerEvent('pointerdown')));
-    if (at(2.4)) await js(() => document.querySelector('.stream-ui [data-a=talk]')?.click());
+    if (at(0.2)) await js(() => document.querySelector('.stream-ui [data-a=play]')?.click());
+    // PERFECT PLAY -> the chat floods with W's
+    if (at(0.2 + 110 / 188)) await js(() => document.querySelector('.qte')?.dispatchEvent(new PointerEvent('pointerdown')));
   });
   await js(() => { const e = document.querySelector('[data-a=end]'); e.style.pointerEvents = 'auto'; });
   await until(() => { const e = document.querySelector('[data-a=end]'); if (e && e.style.opacity === '1') { e.click(); return true; } return false; }, null, 'end stream', 90000);
@@ -212,6 +218,7 @@ try {
   await ff(1150); // just before the lid pops
   await rec(3.6);
 } catch (e) {
+  if (e.message === 'STOP') { console.log('stopped after', cur); await browser.close(); process.exit(0); }
   console.log('CAPTURE ERROR', e.message);
   const r = await cdp.send('Page.captureScreenshot', { format: 'png' });
   writeFileSync(`${OUT}/error_${MODE}.png`, Buffer.from(r.data, 'base64'));

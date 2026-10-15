@@ -149,6 +149,26 @@ export const Stream = {
       const d = delay * (1 + (1 - k) * 4);
       for (let i = 0; i < m; i++) setTimeout(() => !S2.ended && addMsg(pick(pool)), 300 + i * d + Math.random() * d);
     };
+    // W spam: on big moments the whole chat floods the stream with W's. A 5-viewer stream gets a W or two,
+    // a big one gets a wall of them and a running W counter.
+    const W_LINES = ['W', 'W', 'W', 'W', 'WWWW', 'W W W', 'WWWWWWWW', 'W STREAMER', 'HUGE W', 'W :fire:', 'massive W', 'W W', 'W CHAT', 'BIG W :pog:', 'WWW :fire:'];
+    const wCombo = h(`<div class="w-combo"><b>W</b><span>×0</span></div>`);
+    $('.chat', el).appendChild(wCombo);
+    let wN = 0, wT = 0;
+    const bumpW = () => {
+      wN++; wT = S2.t;
+      if (wN < 3) return;
+      wCombo.lastChild.textContent = '×' + wN;
+      wCombo.classList.add('on'); wCombo.classList.remove('bump'); void wCombo.offsetWidth; wCombo.classList.add('bump');
+    };
+    const wWall = (n) => {
+      const k = clamp(chatters() / 14, 0.12, 1);
+      let m = Math.round(n * k);
+      if (m < 1) m = Math.random() < 0.7 ? 1 : 0;
+      const d = 40 + (1 - k) * 220;
+      for (let i = 0; i < m; i++) setTimeout(() => { if (S2.ended) return; addMsg(pick(W_LINES), { cls: 'w' }); bumpW(); }, 120 + i * d + Math.random() * d * 0.7);
+    };
+    const wTick = () => { if (wN && S2.t - wT > 2.2) { wN = 0; wCombo.classList.remove('on'); } };
     const addHype = (v) => { S2.hype = clamp(S2.hype + v, 0, 100); if (S2.hype >= 100 && S2.train <= 0) startTrain(); };
     const startTrain = () => {
       S2.train = 8; S2.events.push('train');
@@ -157,7 +177,8 @@ export const Stream = {
       A.sfx('crowd', 1.4); A.sfx('reward');
       W.addShake(0.6);
       W.vfx.confetti(W.headWorld().add({ x: 0, y: 0.4, z: 0.3 }), 90, 2.4);
-      spam(LINES.hypeTrain, 10, 70);
+      wWall(16);
+      spam(LINES.hypeTrain, 6, 90);
     };
     // ---- donations
     const donation = () => {
@@ -167,6 +188,7 @@ export const Stream = {
       S2.donations += amt;
       A.sfx('donation');
       addMsg(`donated ${fmtMoney(amt)}: ${msg}`, { user, cls: 'don', badge: 'vip' });
+      if (amt >= 50) wWall(8);
       const a = alertPop(`${ic('dollar')} <span>${esc(user)} donated ${fmtMoney(amt)}</span> <button class="btn small" data-thank style="--b:#fff;--b2:#e9ffe0;--bd:#5a9a12;color:#142300">${ic('heart')}Thank</button>`, 'don', 4.5);
       W.screens.data.alert = { text: `${user} donated ${fmtMoney(amt)}`, t: 3 };
       S2.pending = { kind: 'don', user };
@@ -222,7 +244,7 @@ export const Stream = {
       S2.events.push('raid');
       S2.raid += n * 0.6;
       spam(LINES.raid, 8, 90);
-      $('[data-w]', a).addEventListener('pointerdown', (e) => { e.stopPropagation(); a.remove(); react('wave'); S2.raid += n * 0.5; S2.followers += n * 0.12; addHype(25); A.sfx('reward'); spam(['hiii :heart:', 'nice welcome', 'staying!'], 4); }, { once: true });
+      $('[data-w]', a).addEventListener('pointerdown', (e) => { e.stopPropagation(); a.remove(); react('wave'); wWall(10); S2.raid += n * 0.5; S2.followers += n * 0.12; addHype(25); A.sfx('reward'); spam(['hiii :heart:', 'nice welcome', 'staying!'], 4); }, { once: true });
     };
     const lag = () => {
       S2.lag = 3.5;
@@ -299,7 +321,8 @@ export const Stream = {
         if (res > 0) {
           W.screens.data.fx.hit = 1; react('win'); addHype(res === 2 ? 30 : 18); S2.eng += res === 2 ? 0.8 : 0.5; S2.bigWins++;
           A.sfx(res === 2 ? 'perfect' : 'good'); A.sfx('crowd', res === 2 ? 1.2 : 0.7);
-          spam(LINES.hype, res === 2 ? 9 : 5, 80);
+          wWall(res === 2 ? 24 : 9);
+          spam(LINES.hype, res === 2 ? 5 : 3, 110);
           W.addShake(res === 2 ? 0.7 : 0.35);
           if (res === 2 || chance(0.5)) clipMoment();
           W.vfx.emit('star', W.room.st.monitor.clone(), { count: 8, size: 0.12, life: 1.2 });
@@ -410,6 +433,7 @@ export const Stream = {
         R.fl.textContent = '+' + fmt(S2.followers);
         R.tm.textContent = `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
         R.rate.textContent = `${Math.round(S2.msgTimes.length * 6)} msg/min`;
+        wTick();
         R.hbar.style.width = S2.hype + '%'; R.hv.textContent = Math.round(S2.hype) + '%';
         if (t > 15) { R.end.style.opacity = 1; R.end.style.pointerEvents = 'auto'; }
         drawGame(capx, 384, 216, W.screens.t, game, W.screens.data.fx);

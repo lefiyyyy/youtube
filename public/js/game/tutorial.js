@@ -72,7 +72,7 @@ export const Tutorial = {
       const m = modal({ body, size: 'sm', noClose: true, onClose: res });
       G.audio.sfx('levelup');
       G.world.vfx.confetti(G.world.char.root.position.clone().add(new THREE.Vector3(0, 1.5, 0)), 160, 3);
-      bind(body, { ok: (b) => { const r = b.getBoundingClientRect(); G.game.addSparks(15, { x: r.left + r.width / 2, y: r.top }); G.game.addBuff('xp2', 3); m.close(); G.ui.labels.clearMarkers(); G.ui.hud.highlight(null); pointAt(null); G.game.refreshObjective(); setTimeout(() => G.meta.dailyAvailable() && G.meta.daily(true), 600); } });
+      bind(body, { ok: (b) => { const r = b.getBoundingClientRect(); G.game.addSparks(15, { x: r.left + r.width / 2, y: r.top }); G.game.addBuff('xp2', 3); m.close(); G.ui.labels.clearMarkers(); G.ui.hud.highlight(null); pointAt(null); G.game.refreshObjective(); G.game.queue(() => G.meta.dailyAvailable() && G.meta.daily(true)); } }); // after any level-up / reward modals
     });
   },
   // ---- hooks from flows (highlight the right choice)
