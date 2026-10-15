@@ -110,7 +110,7 @@ async function boot() {
   const intro = document.getElementById('intro');
   intro.classList.add('out');
   setTimeout(() => intro.remove(), 700);
-  world.cam.dist *= 2.2; world.cam.pitch = 1.1; world.cam.yaw = 1.2;
+  world.cam.fov += 18; world.cam.uy = 0.4; world.cam.up = 0.12; // gentle pan & zoom into the room
   world.inputEnabled = true;
   SDK.gameplayStart();
   await sleep(700);

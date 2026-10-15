@@ -15,6 +15,7 @@ import { gameById, GENRES } from '../data/games.js';
 import { BUFFS } from '../data/food.js';
 import { totalFans, setupStats, dealPay } from '../game/economy.js';
 import { npcPortrait } from './thumbs.js';
+import * as F from '../world/furniture.js';
 import { dripOf } from '../data/clothes.js';
 import { fmt, fmtMoney, clamp, sleep, dayIndex, msToNextDay, fmtDuration, seeded, now, uid, pick } from '../core/util.js';
 
@@ -81,7 +82,59 @@ export const Meta = {
   },
 
   // ---------------------------------------------------------------- MILESTONE
+  // Subscriber milestones with a plaque arrive as a delivery: the creator unboxes their play disc on camera.
   milestone(m) {
+    if (m.plaque && !G.world.venue && !G.game.busy) {
+      let p;
+      G.game.run('award', async () => { await this.unbox(m); p = this.milestoneModal(m); await p; });
+      return new Promise((r) => { const t = setInterval(() => { if (!G.game.busy) { clearInterval(t); r(); } }, 200); });
+    }
+    return this.milestoneModal(m);
+  },
+  async unbox(m) {
+    const W = G.world, A = G.audio;
+    G.ui.hud.show(false);
+    A.sfx('doorbell');
+    toast('A special delivery from <b>Vidora</b>…', { icon: 'gift', color: m.plaque, dur: 2600 });
+    await W.goTo('door');
+    W.room.setDoorOpen(true); A.sfx('door');
+    await sleep(500);
+    const root = W.char.root, ry = root.rotation.y;
+    const fwd = new THREE.Vector3(Math.sin(ry), 0, Math.cos(ry));
+    W.char.root.rotation.y = ry + Math.PI; // turn back into the room with the box
+    const pkg = new THREE.Group();
+    const boxM = new THREE.MeshStandardMaterial({ color: '#1a1b22', roughness: 0.4 }), rib = new THREE.MeshStandardMaterial({ color: m.plaque, roughness: 0.25, metalness: 0.8 });
+    const bx = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.36, 0.5), boxM); bx.position.y = 0.18; pkg.add(bx);
+    const lid = new THREE.Mesh(new THREE.BoxGeometry(0.54, 0.07, 0.54), boxM); lid.position.y = 0.39; pkg.add(lid);
+    for (const r of [0, Math.PI / 2]) { const rb = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.44, 0.545), rib); rb.position.y = 0.21; rb.rotation.y = r; pkg.add(rb); }
+    pkg.position.copy(root.position).addScaledVector(fwd, -0.62);
+    pkg.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+    W.scene.add(pkg);
+    W.shot('char', { yawAdd: 0.5, dist: 2.3 });
+    W.room.setDoorOpen(false);
+    await sleep(700);
+    W.char.play('pressButton', { restart: true });
+    await sleep(700);
+    // lid pops off in a burst of light
+    A.sfx('sparkle');
+    const t0 = performance.now();
+    await new Promise((r) => { const f = (t) => { const k = Math.min(1, (t - t0) / 450); lid.position.y = 0.39 + k * 0.6; lid.rotation.x = k * 1.4; lid.material.opacity = 1 - k; if (k < 1) requestAnimationFrame(f); else r(); }; lid.material.transparent = true; requestAnimationFrame(f); });
+    W.vfx.emit('spark', pkg.position.clone().add(new THREE.Vector3(0, 0.45, 0)), { count: 24, spread: 0.6, spreadY: 0.8, size: 0.14, life: 1.3, vel: new THREE.Vector3(0, 1.2, 0) });
+    W.scene.remove(pkg); pkg.traverse((o) => { if (o.isMesh) { o.geometry.dispose(); } }); boxM.dispose(); rib.dispose();
+    const plaque = F.buildPlaque(m.plaque, m.name);
+    plaque.scale.setScalar(1.35);
+    plaque.position.set(0, 0.05, 0.42);
+    W.char.chest.add(plaque);
+    W.char.play('holdUp', { restart: true }); W.char.setExpression('laugh', 3);
+    A.sfx('levelup');
+    W.vfx.confetti(root.position.clone().add(new THREE.Vector3(0, 1.7, 0)), 200, 3);
+    W.addShake(0.5);
+    await sleep(2400);
+    W.char.chest.remove(plaque);
+    W.char.play('idle');
+    W.shot('room');
+  },
+  milestoneModal(m) {
     return new Promise((res) => {
       const W = G.world;
       G.audio.sfx('viral');

@@ -762,7 +762,9 @@ input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 
 .modal.full { width: min(1320px, 100%); height: calc(100vh - 28px); max-height: none; }
 .modal.shopm { background: linear-gradient(180deg, #17181e, #101116) !important; }
 .modal.shopm .mb { height: 100%; overflow: hidden; display: flex; }
-.shop { flex: 1; display: flex; flex-direction: column; min-height: 0; padding: 14px 16px 16px; gap: 10px; }
+.shop { flex: 1; display: flex; flex-direction: column; min-height: 0; min-width: 0; padding: 14px 16px 16px; gap: 10px; }
+.sh-top, .sh-subs, .sh-main, .sh-main > * { min-width: 0; }
+.sh-tabs { flex: 0 1 auto; min-width: 0; }
 .sh-top { display: flex; align-items: center; gap: 10px; }
 .sh-ttl { display: flex; align-items: center; gap: 8px; font: 700 20px var(--display); margin-right: 6px; }
 .sh-ttl .i { color: var(--cyan); }
@@ -836,6 +838,8 @@ input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 
 .swatch-board .fl { position: absolute; left: 0; right: 0; bottom: 0; height: 30%; background: var(--f); }
 .swatch-board .bd { position: absolute; left: 12%; bottom: 18%; width: 42%; height: 24%; border-radius: 6px; background: var(--fa); box-shadow: 0 -4px 0 var(--tr) inset; }
 .pv-canvas { display: block; }
+/* toast thumbnail */
+.toast .tthumb { width: 56px; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 6px; float: left; margin: 1px 8px 0 0; }
 /* ================= GO OUT ================= */
 .skill-mini { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
 .skill-mini > div { padding: 8px; border-radius: 10px; background: rgba(255,255,255,0.04); border: 1px solid var(--line); text-align: center; }
@@ -1027,6 +1031,12 @@ input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 
   .pl-art { width: 42px; height: 42px; }
   .pl-b p { display: none; }
   .modal.full { height: calc(100vh - 12px); }
+  .creator .seg button { height: 30px; font-size: 13px; }
+  .creator .seg { padding: 3px; }
+  .creator .cr-sub { display: none; }
+  .creator h2 { font-size: 19px; }
+  .creator .row:first-child .btn.icon { width: 32px; min-height: 32px; }
+  .creator .btn.big { min-height: 42px; font-size: 16px; }
   .shop { padding: 8px 10px 10px; gap: 6px; }
   .sh-ttl span { display: none; }
   .sh-tabs .tab { padding: 6px 9px; }

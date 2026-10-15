@@ -48,14 +48,14 @@ try {
   await click('[data-a=c][data-id=collab]', { wait: 1500 });
   await shot('collab_partners');
   await click('.modal [data-a=p]', { wait: 2500 });
-  await page.waitForSelector('.timeline', { timeout: 90000 });
-  await wait(9000);
+  await page.waitForSelector('.edit-pick', { timeout: 90000 });
+  await click('.edit-opt[data-a=pick]:last-child', { wait: 1000 });
   await page.waitForSelector('[data-a=pub]', { timeout: 60000 }); await wait(500);
   await shot('collab_publish');
   await click('[data-a=pub]', { wait: 3000 });
-  await page.waitForSelector('.results [data-a=ok]:not([disabled])', { timeout: 60000 });
+  await page.waitForSelector('.premiere [data-a=ok]:not([disabled])', { timeout: 60000 });
   await shot('collab_results');
-  await click('.results [data-a=ok]', { wait: 2000 });
+  await click('.premiere [data-a=ok]', { wait: 2000 });
   await idle(true); await closeModals(); await idle();
   // stream with poll + giveaway
   await click('#hud [data-a=create]', { wait: 1500 });

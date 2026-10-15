@@ -68,11 +68,16 @@ try {
   await closeModals(); await idle();
   // decor shop
   await click('#hud .dock [data-a=shop]', { wait: 1000 });
-  await click('.tab[data-k=decor]', { wait: 800 });
+  await click('.sh-tabs .tab[data-k=decor]', { wait: 3000 });
   await shot('shop_decor');
-  const buy = await page.$('[data-a=buyDecor]');
+  const buy = await page.$('.sh-info [data-a=buy]');
   if (buy) { await buy.click({ force: true }); await wait(1500); }
-  await click('.tab[data-k=style]', { wait: 800 });
+  await click('.sh-tabs .tab[data-k=fashion]', { wait: 3500 });
+  await shot('shop_fashion');
+  const buyC = await page.$('.sh-info [data-a=buy]');
+  if (buyC) { await buyC.click({ force: true }); await wait(2000); }
+  await shot('shop_fashion_bought');
+  await click('.sh-tabs .tab[data-k=style]', { wait: 800 });
   await shot('shop_style');
   await click('[data-a=buyTheme][data-id=minimal]', { wait: 2500 });
   await idle(true);
@@ -103,7 +108,7 @@ try {
   await page.evaluate(() => window.__G.life.wardrobe());
   await wait(4000);
   await shot('wardrobe');
-  await click('.creator [data-a=set][data-k=outfit][data-v=jacket]', { wait: 800 });
+  await click('.creator [data-a=wear][data-slot=top][data-v=jacket]', { wait: 800 });
   await click('.creator [data-a=done]', { wait: 2000 });
   // profile + settings
   await click('#hud [data-a=profile]', { wait: 1000 });

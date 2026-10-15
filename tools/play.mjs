@@ -19,8 +19,11 @@ try {
   await page.evaluate(() => (window.__autoplay = true));
   await wait(3500);
   await shot('creator');
-  await click('.creator [data-a=set][data-k=hair][data-v=bob]');
-  await click('.creator [data-a=set][data-k=top][data-v="#2fd6ff"]');
+  await click('.creator [data-a=gender][data-v=f]', { wait: 1200 });
+  await click('.creator [data-a=set][data-k=hair][data-v=ponytail]');
+  await click('.creator [data-a=tab][data-v=outfit]');
+  await click('.creator [data-a=wear][data-slot=bottom][data-v=skirt]');
+  await shot('creator_outfit');
   await click('.creator [data-a=done]', { wait: 2500 });
   await shot('room_tutorial');
   // create
@@ -31,24 +34,23 @@ try {
   await click('[data-a=g]', { wait: 1200 });
   await shot('content_picker');
   await click('[data-a=c][data-id=gameplay]', { wait: 4000 });
+  await page.waitForSelector('.rec-card', { timeout: 30000 });
+  await wait(2500);
   await shot('recording');
-  await wait(9000);
-  await shot('recording_late');
-  await wait(3500);
-  await page.waitForSelector('.timeline', { timeout: 15000 });
-  await wait(1200);
+  await page.waitForSelector('.edit-pick', { timeout: 60000 });
+  await wait(800);
+  await shot('edit_choice');
+  await click('.edit-opt[data-id=clean]', { wait: 1800 });
   await shot('editing');
-  // cut boring/bad
-  for (const sel of await page.$$('.seg.meh, .seg.bad')) { try { await sel.click({ force: true, timeout: 500 }); } catch {} }
-  await wait(6000);
-  await page.waitForSelector('[data-a=pub]', { timeout: 15000 });
+  await page.waitForSelector('[data-a=pub]', { timeout: 60000 });
   await wait(800);
   await shot('publish');
+  await click('.tagb:not(.on)', { wait: 300 });
   await click('[data-a=pub]', { wait: 3500 });
-  await page.waitForSelector('.results', { timeout: 15000 });
-  await wait(2600);
-  await shot('results');
-  await click('.results [data-a=ok]:not([disabled])', { wait: 2500, timeout: 20000 });
+  await page.waitForSelector('.premiere', { timeout: 30000 });
+  await wait(3000);
+  await shot('premiere');
+  await click('.premiere [data-a=ok]:not([disabled])', { wait: 2500, timeout: 40000 });
   await shot('after_video');
   await page.waitForSelector('.modal [data-a=ok]', { timeout: 30000 }).catch(() => {});
   // reward modal(s)
@@ -65,7 +67,11 @@ try {
   await shot('ate');
   await click('#hud .dock [data-a=shop]', { wait: 1200 });
   await shot('shop');
-  await click('[data-focus=mic] [data-a=buyGear]', { wait: 2000 });
+  await page.waitForSelector('.shop .item[data-focus=mic]', { timeout: 15000 });
+  await wait(2500);
+  await shot('shop_mic');
+  await click('.shop .item[data-focus=mic]', { wait: 800 });
+  await click('.sh-info [data-a=buy]', { wait: 2000 });
   await shot('install');
   await idle(true);
   await shot('installed');
@@ -89,7 +95,7 @@ try {
   await wait(2500);
   await shot('summary');
   await click('.summary [data-a=ok]:not([disabled])', { wait: 2500, timeout: 20000 });
-  for (let i = 0; i < 4; i++) { const b = await page.$('.modal [data-a=ok], .modal [data-a=claim]'); if (b) { await shot('end_modal_' + i); await b.click({ force: true }); await wait(1800); } }
+  for (let i = 0; i < 8; i++) { const b = await page.$('.modal [data-a=ok], .modal [data-a=claim], .modal [data-a=later], .modal [data-x]'); if (b) { await shot('end_modal_' + i); await b.click({ force: true }); await wait(1800); } else await wait(800); }
   await shot('end');
   await idle();
   // phone

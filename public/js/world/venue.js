@@ -182,8 +182,8 @@ export class Venue {
     const r = this.root;
     const W = (this.W = 10), D = (this.D = 8);
     this.H = 4.5;
-    this.corner = V3(W / 2 - 0.5, 3.0, D / 2 - 0.4);
-    this.target = V3(-0.6, 0.9, -1.4);
+    this.corner = V3(1.9, 2.7, D / 2 - 0.4);
+    this.target = V3(-0.7, 0.75, -1.0);
     const fl = tiles('#2a2d3a', '#3c4152'); fl.repeat.set(W / 2.4, D / 2.4);
     at(box(W, 0.08, D, mat('#ffffff', { rough: 0.35, map: fl, env: 0.9 })), r, 0, -0.04, 0).receiveShadow = true;
     const wallM = mat('#1b1d27', { rough: 0.85 });
@@ -201,7 +201,7 @@ export class Venue {
       ctx.fillText(opts.name || 'Creator', w / 2, h * 0.42);
       ctx.font = '700 46px Outfit, sans-serif'; ctx.fillStyle = 'rgba(255,255,255,0.7)'; ctx.fillText('FAN MEETUP · MEET & GREET', w / 2, h * 0.72);
     });
-    at(plane(6, 2.25, mat('#ffffff', { map: banner, emissive: '#ffffff', ei: 0.25, rough: 0.6 })), r, -0.6, 2.4, -D / 2 + 0.02).userData.noShadow = true;
+    at(plane(6, 2.25, mat('#ffffff', { map: banner, rough: 0.7 })), r, -0.6, 2.4, -D / 2 + 0.02).userData.noShadow = true;
     // signing table
     const table = group(r, -0.6, 0, -D / 2 + 1.6);
     at(rbox(2.6, 0.06, 0.8, 0.02, mat('#f2efe9', { rough: 0.5 })), table, 0, 0.76, 0);
@@ -225,7 +225,7 @@ export class Venue {
       at(box(0.9, 1.8, 0.01, mat('#ffffff', { emissive: c, ei: 0.6, rough: 0.4 })), r, x, 1.15, -D / 2 + 0.65).userData.noShadow = true;
     }
     const add = (c, i, d, x, y, z) => { const l = new THREE.PointLight(c, i, d, 1.5); l.position.set(x, y, z); r.add(l); this.lights.push(l); return l; };
-    add('#fff1dc', 7, 9, -0.6, 3.6, -1.2);
+    add('#fff1dc', 4.5, 9, -0.6, 3.6, -1.2);
     add(accent, 4, 6, -0.6, 2.2, -D / 2 + 1.2);
     add('#9fd8ff', 3, 9, 2.5, 3.5, 2);
     this.queueSpots = Array.from({ length: 6 }, (_, i) => ({ x: -0.6, z: -D / 2 + 2.6 + i * 0.75, ry: PI }));

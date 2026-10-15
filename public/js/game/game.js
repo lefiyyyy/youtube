@@ -10,7 +10,7 @@ import { GEAR } from '../data/gear.js';
 import { DECOR, HOMES, THEMES } from '../data/decor.js';
 import { FOODS } from '../data/food.js';
 import { trendFor, totalFans, setupStats } from './economy.js';
-import { toast, fly, modal, anyModal, h, bind, ic, $, pointAt } from '../ui/ui.js';
+import { toast, fly, modal, anyModal, h, bind, ic, esc, $, pointAt } from '../ui/ui.js';
 import { eventForDay, EVENTS } from '../data/events.js';
 import { gameMinutes, step, migrateVideo } from './videos.js';
 
@@ -136,6 +136,19 @@ export class Game {
       if (!d) continue;
       views += d.views; subs += d.subs; money += d.money; s.stats.likes += d.likes;
       if (s.stats.best && v.views > s.stats.best.views) s.stats.best = { views: v.views, title: v.title };
+      const VM = [100, 1000, 10000, 100000, 1000000, 10000000];
+      const reached = VM.filter((x) => v.views >= x).length;
+      if (reached > (v.vm || 0)) {
+        const first = v.vm === undefined && v.views >= 1000;
+        v.vm = reached;
+        if (!first && reached >= 2 || (s.videos.indexOf(v) === 0 && reached >= 1 && s.stats.videos <= 3)) this.viewToast = { v, n: VM[reached - 1] };
+      }
+    }
+    if (this.viewToast) {
+      const { v, n } = this.viewToast; this.viewToast = null;
+      toast(`${v.thumb ? `<img class="tthumb" src="${v.thumb}">` : ''}<b>${fmt(n)} views!</b> ${esc(v.title)}`, { icon: 'eye', color: 'var(--vid)', sub: n >= 100000 ? 'This one is blowing up' : 'Your video keeps climbing', dur: 3200 });
+      G.audio?.sfx(n >= 100000 ? 'viral' : 'notify');
+      if (n >= 100000) G.world.vfx.confetti(G.world.char.root.position.clone().add({ x: 0, y: 1.6, z: 0 }), 90, 2.4);
     }
     if (!views) return;
     s.stats.views += views;

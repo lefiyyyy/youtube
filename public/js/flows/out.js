@@ -278,7 +278,7 @@ export const Out = {
         if (spawned >= total) return;
         const i = queue.length;
         const q = v.queueSpots[Math.min(i + 1, v.queueSpots.length - 1)];
-        const n = v.addNPC('fan' + spawned, null, fanProfile(), { x: q.x, z: v.D / 2 - 0.6, ry: Math.PI, clip: 'idle', block: false });
+        const n = v.addNPC('fan' + spawned, null, fanProfile(), { x: v.W / 2 - 1.2, z: 2.2, ry: -Math.PI / 2, clip: 'idle', block: false });
         n.want = pick(WANTS);
         queue.push(n); spawned++;
         v.moveNPC(n, q.x, q.z, Math.PI, 'idle');
@@ -319,7 +319,7 @@ export const Out = {
             G.ui.labels.bubble(n.c.root, good ? pick(['Best day ever!', 'OMG thank you!!', 'I love your videos!', 'Legend!']) : pick(['Oh… thanks!', 'Haha okay', 'Cool!']));
             served++;
             await sleep(1100);
-            v.moveNPC(n, n.c.root.position.x + 2.6, v.D / 2 - 0.6, 0, 'idle').then(() => v.removeNPC(n));
+            v.moveNPC(n, -v.W / 2 + 1.0, n.c.root.position.z + 0.6, -Math.PI / 2, 'idle').then(() => v.removeNPC(n));
             W.char.play('idle');
             spawnFan();
             nextFan();
@@ -362,7 +362,7 @@ export const Out = {
       let res = { pay: 0, orders: 0, perfect: 0, tips: 0 };
       try {
         const { Job } = await import('./job.js');
-        res = await Job.shift({ difficulty: clamp(0.2 + s.level * 0.03, 0.2, 0.8), wage: 12 + s.level * 2 });
+        res = await Job.shift({ difficulty: clamp(0.2 + s.level * 0.03, 0.2, 0.8), wage: 4 + s.level });
       } catch (e) { console.error(e); }
       s.outings.job = s.clock.day;
       G.game.advance(4);

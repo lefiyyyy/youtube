@@ -1102,6 +1102,12 @@ export const CLIPS = {
     T.lsz = 0.6; T.lex = -1.8; T.lsx = 0.2;
     T.hipRz = 0.08; T.hdRz = -0.12; T.spRz = -0.04;
   },
+  holdUp(T, t) {
+    const b = Math.abs(sin(t * 5));
+    T.lsx = -1.25 - b * 0.12; T.rsx = -1.25 - b * 0.12; T.lsz = -0.12; T.rsz = 0.12; T.lsy = 0.25; T.rsy = -0.25;
+    T.lex = -0.55; T.rex = -0.55;
+    T.by = b * 0.03; T.spRx = -0.06; T.hdRx = -0.12;
+  },
   talkStand(T, t, c, br) {
     armsRelaxed(T, br);
     T.rsx = -0.55 + sin(t * 2.1) * 0.22; T.rsz = -0.28 + sin(t * 1.3) * 0.08; T.rex = -1.15 + sin(t * 3.1) * 0.3; T.rwz = sin(t * 4) * 0.25;

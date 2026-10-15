@@ -314,7 +314,7 @@ export class World {
         const from = r.camPoint.clone();
         from.x += 0.06; from.y += 0.06;
         from.z = Math.min(from.z, -r.D / 2 + 0.02);
-        this.fixedCam = { pos: from, look: head.clone().add(V3(0, -0.12, 0)), fov: 64 };
+        this.fixedCam = { pos: from, look: head.clone().add(V3(0, -0.16, 0)), fov: 72 };
         break;
       }
       case 'kitchen': {
@@ -805,7 +805,7 @@ export class World {
     const scrOn = this.screens.surfaces.get('main')?.mode !== 'off';
     this.screenLight.visible = scrOn;
     if (this.screens.data.fx.hit > 0) this.screenLight.intensity = 1.2 + this.screens.data.fx.hit * 2;
-    if (this.shotName === 'stream' && this.fixedCam) this.fixedCam.look.copy(this.headWorld().add(V3(0, -0.07, 0)));
+    if (this.shotName === 'stream' && this.fixedCam) this.fixedCam.look.copy(this.headWorld().add(V3(0, -0.12, 0)));
     this.updateCamera(dt);
   }
   render() {

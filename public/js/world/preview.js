@@ -48,7 +48,7 @@ export class ItemPreview {
     if (spec.kind === 'gear') {
       const scr = [];
       const t = spec.tier, c = spec.cat;
-      if (c === 'pc') obj = F.buildPC(t, accent, scr);
+      if (c === 'pc') { obj = F.buildPC(t, accent, scr); if (t > 0) obj.rotation.y = Math.PI / 2; }
       else if (c === 'monitor') obj = t === 0 ? F.buildPC(0, accent, scr) : F.buildMonitors(t, accent, scr);
       else if (c === 'camera') obj = t === 0 ? F.buildPC(0, accent, scr) : F.buildCamera(t, accent, false);
       else if (c === 'mic') obj = F.buildMic(t, accent, false);
