@@ -10,7 +10,7 @@ const MODE = process.argv[2] === 'portrait' ? 'portrait' : 'landscape';
 const P = MODE === 'portrait';
 const VW = P ? 864 : 1280, VH = P ? 1296 : 720, DPR = P ? 1.25 : 1.5; // → 1080x1620 (2:3) / 1920x1080
 const FPS = 30, DT = 1000 / FPS;
-const OUT = process.argv[3] || 'tools/video';
+const OUT = process.argv[3] || 'promo';
 const FR = `${OUT}/frames_${MODE}`;
 rmSync(FR, { recursive: true, force: true });
 mkdirSync(FR, { recursive: true });
@@ -27,7 +27,10 @@ const cdp = await ctx.newCDPSession(page);
 // ---- time control
 const stepAnims = (dt) => page.evaluate((dt) => {
   for (const a of document.getAnimations()) {
-    if (!a.__cap) { a.__cap = 1; a.pause(); a.currentTime = 0; } else a.currentTime = (a.currentTime || 0) + dt;
+    if (a.__done) continue;
+    if (!a.__cap) { a.__cap = 1; a.pause(); a.currentTime = 0; continue; }
+    const t = (a.currentTime || 0) + dt, end = a.effect?.getComputedTiming().endTime;
+    if (Number.isFinite(end) && t >= end) { a.__done = 1; a.finish(); } else a.currentTime = t; // finish() fires onfinish handlers
   }
 }, dt);
 const tick = async (ms) => { await page.clock.runFor(ms); await stepAnims(ms); };
@@ -78,7 +81,9 @@ try {
   console.log(MODE, `${VW * DPR}x${VH * DPR}`);
   await page.goto('http://localhost:8080/?fresh&q=high', { waitUntil: 'load' });
   // stop the clock: from here on only our ticks move time
-  await page.clock.pauseAt((await page.evaluate(() => Date.now())) + 200);
+  for (let i = 0; ; i++) {
+    try { await page.clock.pauseAt((await page.evaluate(() => Date.now())) + 1500); break; } catch (e) { if (i > 4) throw e; }
+  }
   // ---- character + mid-game progress (off camera)
   await sel('.creator [data-a=done]');
   await tap('.creator [data-a=gender][data-v=f]');
@@ -126,7 +131,7 @@ try {
   shot('room');
   await js(() => { const W = window.__G.world; W.shot('room'); W.cam.yaw += 0.18; W.cam.dist *= 1.08; });
   await settle();
-  await rec(2.6);
+  await rec(2.4);
 
   // 2) recording: catch the highlights
   shot('recording');
@@ -136,7 +141,7 @@ try {
   await tap('[data-a=c][data-id=gameplay]');
   await sel('.rec-card');
   await ff(1500);
-  await rec(3.2);
+  await rec(2.8);
 
   // 3) premiere: live views, then VIRAL
   shot('premiere');
@@ -149,8 +154,8 @@ try {
   await tap('[data-a=pub]');
   await sel('.premiere');
   await js(() => { Math.random = window.__rnd; });
-  await ff(3600);
-  await rec(4.2);
+  await ff(3800);
+  await rec(3.8);
   await until(() => !document.querySelector('.premiere [data-a=ok][disabled]'), null, 'continue');
   await tap('.premiere [data-a=ok]');
   await until(() => !window.__G.game.busy, null, 'video flow done');
@@ -161,15 +166,19 @@ try {
 
   // 4) live stream with a busy chat
   shot('stream');
+  await js(() => { const n = window.__G.s.needs; n.energy = 96; n.hunger = 92; });
   await tap('#hud [data-a=create]');
   await tap('.hub-card.stream');
   await tap('[data-a=g][data-id=galaxyroyale]');
   await tap('[data-a=go]');
   await sel('.stream-ui');
   await ff(7000);
-  await rec(3.8, async (t) => {
-    if (Math.abs(t - 0.6) < 0.01) await js(() => document.querySelector('.stream-ui [data-a=play]')?.click());
-    if (Math.abs(t - 2.2) < 0.01) await js(() => document.querySelector('.stream-ui [data-a=talk]')?.click());
+  await rec(3.6, async (t) => {
+    const at = (x) => Math.abs(t - x) < 0.5 / FPS;
+    // Big Play, hit right on the ring (ring closes at 160+2*level px/s from 200 to 90)
+    if (at(0.5)) await js(() => document.querySelector('.stream-ui [data-a=play]')?.click());
+    if (at(0.5 + 110 / 188)) await js(() => document.querySelector('.qte')?.dispatchEvent(new PointerEvent('pointerdown')));
+    if (at(2.4)) await js(() => document.querySelector('.stream-ui [data-a=talk]')?.click());
   });
   await js(() => { const e = document.querySelector('[data-a=end]'); e.style.pointerEvents = 'auto'; });
   await until(() => { const e = document.querySelector('[data-a=end]'); if (e && e.style.opacity === '1') { e.click(); return true; } return false; }, null, 'end stream', 90000);
@@ -183,12 +192,12 @@ try {
 
   // 5) going out: rooftop party with other creators
   shot('party');
-  await js(() => { void window.__G.out.party(); });
+  await js(() => { window.__G.s.needs.energy = 95; void window.__G.out.party(); });
   await sel('.party-ui [data-a=dance]');
   await ff(1200);
   await tap('.party-ui [data-a=dance]');
   await ff(400);
-  await rec(3.0);
+  await rec(2.6);
   await tap('.party-ui [data-a=leave]');
   await until(() => { document.querySelector('.modal-wrap [data-a=ok]')?.click(); return !window.__G.game.busy; }, null, 'party done', 90000);
   await js(() => document.querySelectorAll('.modal-wrap [data-x], .modal-wrap [data-a=ok]').forEach((b) => b.click()));
@@ -198,10 +207,10 @@ try {
 
   // 6) the Gold Disc arrives
   shot('award');
-  await js(() => { const G = window.__G; G.s.fans.vid = Math.max(G.s.fans.vid, 100500); G.game.checkMilestones(); });
-  await until(() => window.__G.game.busy === 'award', null, 'award start');
-  await ff(5200);
-  await rec(3.4);
+  await js(() => { const G = window.__G; G.s.needs.energy = 95; G.s.fans.vid = Math.max(G.s.fans.vid, 100500); G.game.checkMilestones(); });
+  await until(() => window.__G.game.busy === 'award' && window.__G.world.shotName === 'char', null, 'award box');
+  await ff(1150); // just before the lid pops
+  await rec(3.6);
 } catch (e) {
   console.log('CAPTURE ERROR', e.message);
   const r = await cdp.send('Page.captureScreenshot', { format: 'png' });

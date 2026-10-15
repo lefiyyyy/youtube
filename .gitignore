@@ -4,3 +4,4 @@ node_modules
 tools/shots/
 tools/video/frames_*/
 tools/_exp.mjs
+promo/frames_*/

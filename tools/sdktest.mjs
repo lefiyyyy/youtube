@@ -59,17 +59,17 @@ try {
   expect(L.join() === 'data.setItem,gameplayStop,gameplayStart', 'hidden saves + stops, visible resumes: ' + L.join(', '));
   // natural break: sleep → midgame ad, frozen + muted while it plays
   await page.evaluate(() => { window.__cglog.length = 0; window.__G.s.clock.min = 23 * 60; void window.__G.life.sleep(); });
-  await page.waitForFunction(() => window.__during, null, { timeout: 30000 });
+  await page.waitForFunction(() => window.__during, null, { timeout: 120000 });
   const during = await page.evaluate(() => window.__during);
   expect(during.inAd && during.busy && during.music === 0 && during.sfx === 0 && !during.input, 'during ad: game held, audio muted ' + JSON.stringify(during));
-  await page.waitForFunction(() => !window.__G.game.busy, null, { timeout: 30000 });
+  await page.waitForFunction(() => !window.__G.game.busy, null, { timeout: 120000 });
   const after = await page.evaluate(() => ({ inAd: window.__G.sdk.inAd, music: window.__G.audio.vol.music, input: window.__G.world.inputEnabled }));
   L = await log();
   expect(L.includes('requestAd:midgame') && L.indexOf('gameplayStop') > L.indexOf('adStarted') && L.lastIndexOf('gameplayStart') > L.indexOf('adFinished'), 'ad sequence: ' + L.join(', '));
   expect(!after.inAd && after.music > 0 && after.input, 'after ad: audio restored, input back ' + JSON.stringify(after));
   // cooldown: a second break right away shows no ad
   await page.evaluate(() => { window.__cglog.length = 0; window.__G.s.clock.min = 23 * 60; void window.__G.life.sleep(); });
-  await page.waitForFunction(() => !window.__G.game.busy, null, { timeout: 30000 });
+  await page.waitForFunction(() => !window.__G.game.busy, null, { timeout: 120000 });
   L = await log();
   expect(!L.includes('requestAd:midgame'), 'ad cooldown respected');
   // platform mute

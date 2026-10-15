@@ -141,8 +141,11 @@ cooldown, platform mute and data saves.
 
 **Store videos** (no cover image needed, the existing one is used): `node tools/trailer.mjs landscape` and
 `node tools/trailer.mjs portrait` capture real gameplay frame by frame on a fake clock (true game speed, no
-speed-up, no cursor, no black frames or text cards) and encode `tools/video/streamer-rise-landscape.mp4`
-(1920×1080) and `tools/video/streamer-rise-portrait.mp4` (1080×1620, 2:3).
+speed-up, no cursor, no black frames or text cards) and encode `promo/streamer-rise-landscape.mp4`
+(1920×1080) and `promo/streamer-rise-portrait.mp4` (1080×1620, 2:3). Both are ~19 s, silent, H.264, well under
+50 MB, and show: the studio with live HUD counters → recording a game and catching highlights → a premiere going
+viral → a live stream with chat → the rooftop party → the Gold Disc unboxing. Upload them as the game's
+landscape and portrait videos in the CrazyGames developer portal.
 
 ## Development tools
 

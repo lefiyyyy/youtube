@@ -14,7 +14,7 @@ export const USER_COLORS = ['#ff6b9a', '#ffb547', '#9dff5a', '#2fd6ff', '#b48cff
 export const LINES = {
   hello: ['hiii :heart:', 'yo chat', 'just got here!', 'hello from Brazil', 'first time here :pog:', 'evening everyone', 'whats up {name}', 'hey hey', 'lurking :cool:', 'back again lol', 'hi from the clip!'],
   generic: ['vibes :cool:', 'this is so chill', 'love the energy', 'lol', 'W streamer', 'whats the plan today?', 'chat is cozy today', 'no way', 'real', 'this music slaps', 'hydrate check', ':clap: :clap:', 'how long you been streaming?', 'gaming time', 'lets gooo', 'locked in :fire:', 'peak content', 'POV: im procrastinating', 'staying till the end'],
-  hype: ['W', 'WWWW', 'LETS GOOOO :fire:', 'CLIP IT :pog:', 'NO WAY :pog:', 'INSANE', 'HYPE HYPE :fire:', 'cracked :fire:', 'GG :gg:', 'BIG PLAY', 'he did it :pog:', 'actually goated', 'that was clean', ':pog: :pog: :pog:', 'chat did you see that'],
+  hype: ['W', 'WWWW', 'LETS GOOOO :fire:', 'CLIP IT :pog:', 'NO WAY :pog:', 'INSANE', 'HYPE HYPE :fire:', 'cracked :fire:', 'GG :gg:', 'BIG PLAY', '{pr} did it :pog:', 'actually goated', 'that was clean', ':pog: :pog: :pog:', 'chat did you see that'],
   fail: ['L', 'lmaooo :lul:', 'skill issue :lul:', 'F', 'unlucky', 'nooo :sad:', 'bro tripped :lul:', 'that was rough', 'its ok we move', 'lol :skull:', 'NOT LIKE THIS :sad:', 'pain'],
   question: ['whats your setup?', 'favorite game ever?', 'when is the next video?', 'can you say hi to me?', 'how do you edit your vids?', 'what mic is that?', 'do you play with viewers?', 'tips for new streamers?'],
   troll: ['this stream is mid', 'ur bad lol', 'boring :sad:', 'unsub', 'go play something good', 'cringe', 'zzz'],
@@ -38,7 +38,7 @@ export const LINES = {
   poll: ['1', '2', '1!!', 'option 2 obviously', '2 2 2', '1 for sure'],
   genre: {
     horror: ['dont open that door', 'BEHIND YOU', 'im scared for you :sad:', 'jumpscare incoming', 'nope nope nope', 'lights on pls :skull:'],
-    racing: ['drift king :fire:', 'that corner tho', 'turbo time', 'pit stop?', 'speedy', 'clean line'],
+    racing: ['drift {king} :fire:', 'that corner tho', 'turbo time', 'pit stop?', 'speedy', 'clean line'],
     shooter: ['headshot!!', 'aim is crazy :pog:', 'reload!!', 'flank left', 'one tap', 'clutch or kick'],
     sandbox: ['build a castle', 'this build is huge', 'add a moat lol', 'mining time', 'creative mode when'],
     cozy: ['so relaxing :heart:', 'name the cow', 'comfy stream :cool:', 'water the crops', 'healing my soul'],

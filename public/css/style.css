@@ -440,7 +440,7 @@ input { font: inherit; }
 .s-act.ready { box-shadow: var(--shadow), 0 0 0 2px rgba(255,255,255,0.15); }
 .s-act:active { transform: translateY(2px); }
 .s-act.k1 .i { color: var(--cyan); } .s-act.k2 .i { color: var(--amber); } .s-act.k3 .i { color: var(--pink2); } .s-act.k4 .i { color: var(--lime); } .s-act.k5 .i { color: #c3b2ff; }
-.s-act.flash { animation: actFlash 0.6s ease-in-out infinite; }
+.s-act.clipready { animation: actFlash 0.6s ease-in-out infinite; }
 @keyframes actFlash { 50% { box-shadow: 0 0 0 3px var(--amber), 0 0 24px var(--amber); } }
 .alert-pop { position: absolute; left: calc(50% - min(15vw, 170px)); top: 70px; transform: translateX(-50%); padding: 12px 22px; border-radius: 18px; font: 800 18px var(--display); display: flex; align-items: center; gap: 10px; animation: alertIn 0.5s cubic-bezier(0.2, 1.6, 0.4, 1); white-space: nowrap; z-index: 3; }
 @keyframes alertIn { from { opacity: 0; transform: translate(-50%, -20px) scale(0.7); } }

@@ -106,7 +106,9 @@ export const Stream = {
       while (crowd.length < Math.min(want, 60)) crowd.push(randomUser());
       return crowd[Math.floor(Math.pow(Math.random(), 1.3) * Math.min(crowd.length, want))];
     };
+    const fem = s.profile.gender === 'f';
     const addMsg = (text, opt = {}) => {
+      text = text.replace('{pr}', fem ? 'she' : 'he').replace('{king}', fem ? 'queen' : 'king'); // chat talks about your creator
       const user = opt.user || crowdUser();
       const col = opt.color || USER_COLORS[(user.length * 7 + user.charCodeAt(0)) % USER_COLORS.length];
       const badge = opt.badge === 'sub' ? `<span class="bdg" style="background:var(--violet)">${ic('star')}</span>` : opt.badge === 'mod' ? `<span class="bdg" style="background:var(--lime);color:#123">${ic('hammer')}</span>` : opt.badge === 'vip' ? `<span class="bdg" style="background:var(--pink)">${ic('spark')}</span>` : '';
@@ -199,7 +201,7 @@ export const Stream = {
         A.sfx('cut'); S2.mood = clamp(S2.mood + 0.08, 0, 1); S2.trolls--;
         spam(['W mod', 'get out lol', 'BANNED :skull:', 'clean chat :cool:'], 3, 160);
       }, { once: true });
-      setTimeout(() => { if (m.querySelector('[data-ban]')) { S2.mood = clamp(S2.mood - 0.12, 0, 1); spam(['ugh trolls', 'ban him', 'mods??'], 2); } }, 6000);
+      setTimeout(() => { if (m.querySelector('[data-ban]')) { S2.mood = clamp(S2.mood - 0.12, 0, 1); spam(['ugh trolls', 'ban them', 'mods??'], 2); } }, 6000);
     };
     const question = () => {
       if (S2.q) return;
@@ -230,7 +232,7 @@ export const Stream = {
     };
     const clipMoment = () => {
       S2.clipWindow = 4;
-      const b = $('[data-a=clip]', el); b?.classList.add('flash');
+      const b = $('[data-a=clip]', el); b?.classList.add('clipready');
       addMsg('CLIP THAT :pog:', {});
       spam(['CLIP IT', 'clip clip clip', ':pog: :pog:'], 3, 150);
     };
@@ -278,7 +280,7 @@ export const Stream = {
       if (!a) return; // not unlocked yet (hotkeys 4/5)
       if (id === 'clip') {
         if (S2.clipWindow <= 0) { A.sfx('error'); floatText(innerWidth * 0.3, innerHeight * 0.75, 'Wait for a highlight', '#ff8f99'); return; }
-        S2.clipWindow = 0; S2.clips++; s.clips++; $('[data-a=clip]', el)?.classList.remove('flash');
+        S2.clipWindow = 0; S2.clips++; s.clips++; $('[data-a=clip]', el)?.classList.remove('clipready');
         A.sfx('shutter'); flash(); addHype(8);
         sys(`${ic('scissors')} Clip saved for Blip!`);
         bus.emit('q', { evt: 'clip', n: 1 });
@@ -354,7 +356,7 @@ export const Stream = {
         S2.eng = Math.max(0.5, S2.eng - dt * 0.05);
         S2.raid = Math.max(0, S2.raid - dt * S2.raid * 0.04);
         S2.clipWindow = Math.max(0, S2.clipWindow - dt);
-        if (S2.clipWindow <= 0) $('[data-a=clip]', el)?.classList.remove('flash');
+        if (S2.clipWindow <= 0) $('[data-a=clip]', el)?.classList.remove('clipready');
         if (S2.lag > 0) { S2.lag -= dt; if (S2.lag <= 0) { S2.viewers *= 0.8; S2.mood -= 0.1; sys(`${ic('wifi')} Viewers left due to lag`); } }
         const target = base.base * (0.35 + 0.65 * ramp) * (1 + S2.hype / 100 * 0.9) * (0.7 + S2.mood * 0.4) * (S2.train > 0 ? 1.3 : 1) + S2.raid;
         S2.viewers += (target - S2.viewers) * (1 - Math.exp(-dt * 0.8)) + (Math.random() - 0.5) * Math.sqrt(target) * dt * 3;

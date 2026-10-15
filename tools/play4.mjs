@@ -68,15 +68,15 @@ try {
   await shot('stream_poll');
   await page.keyboard.press('Digit5'); await wait(1500);
   await shot('stream_giveaway');
-  await page.evaluate(() => { document.querySelector('[data-a=end]').style.pointerEvents = 'auto'; });
-  await wait(15000);
+  await page.waitForFunction(() => document.querySelector('[data-a=end]')?.style.opacity === '1', null, { timeout: 180000 });
   await click('[data-a=end]', { wait: 1500 });
   await page.waitForSelector('.summary [data-a=ok]:not([disabled])', { timeout: 60000 });
   await shot('stream_summary_big');
   await click('.summary [data-a=ok]', { wait: 1500 });
   await idle(true); await closeModals(); await idle();
   // phone: lumo, inbox, team, delivery
-  await click('#hud .dock [data-a=phone]', { wait: 1200 });
+  // a queued celebration (level up, milestone unboxing) can start right after the stream: retry until the phone opens
+  for (let i = 0; i < 6 && !(await page.$('.phone-wrap')); i++) { await idle(true); await closeModals(); await idle(); await click('#hud .dock [data-a=phone]', { wait: 1500 }); }
   await click('.app[data-id=lumo]', { wait: 800 });
   await click('.post-type[data-k=setup]', { wait: 5000 });
   await shot('lumo_setup');
