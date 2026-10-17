@@ -18,7 +18,12 @@ Requirements: Node 16+ (only for the tiny static server) and a WebGL2-capable br
 There is **no build step and no install**: every critical asset (Three.js, fonts, code) is local in `public/`.
 Audio is synthesized at runtime with WebAudio, and all 3D models and textures are procedural.
 
-Any static host works too — just serve the `public/` folder (e.g. upload it as the game folder on CrazyGames).
+Any static host works too — just serve the `public/` folder.
+
+**Release build:** `npm run dist` (or `node tools/dist.mjs`) fills `dist/` with everything to upload to CrazyGames:
+`dist/streamer-rise-crazygames.zip` (the game, `index.html` at the zip root), the same files unzipped in `dist/game/`
+(test locally with `node server.js 8080 dist/game`), the store videos in `dist/videos/` and `dist/UPLOAD.md`
+(upload steps and the store listing text).
 
 ### Useful URL flags
 
@@ -144,8 +149,8 @@ cooldown, platform mute and data saves.
 **Store videos** (no cover image needed, the existing one is used): `node tools/trailer.mjs landscape` and
 `node tools/trailer.mjs portrait` play the game once on a fake clock, capture each high-energy beat as its own clip
 at true game speed (no speed-up, no cursor, no black frames, no text cards or logos), then cut them together with
-punch-in zooms and impact flashes: `promo/streamer-rise-landscape.mp4` (1920×1080) and
-`promo/streamer-rise-portrait.mp4` (1080×1620, 2:3), ~18 s, silent, H.264, well under 50 MB. The edit: a premiere
+punch-in zooms and impact flashes: `dist/videos/streamer-rise-landscape.mp4` (1920×1080) and
+`dist/videos/streamer-rise-portrait.mp4` (1080×1620, 2:3), ~18 s, silent, H.264, well under 50 MB. The edit: a premiere
 going VIRAL (hook) → a perfect Big Play that floods the chat with W's → catching highlights while recording →
 level up → HYPE TRAIN → a raid → a new setup installed → moving into the penthouse → the rooftop party → the
 Gold Disc unboxing → 100K subscribers. Upload them as the game's landscape and portrait videos in the CrazyGames
@@ -160,6 +165,9 @@ developer portal.
 * `node tools/play3.mjs` — returning player: offline views, daily reward streak, next-day event + reminder (`?dayOffset`).
 * `node tools/play4.mjs` — late game: collab videos, Lumo, inbox, delivery, team, poll/giveaway, penthouse.
 * `node tools/sdktest.mjs` — CrazyGames SDK integration checks (mock SDK).
+* `node tools/parity.mjs [device...]` — desktop / phone parity: walks the main screens at 1080p, laptop, CrazyGames
+  embed, tablet and phone sizes and reports any UI cut off by the screen or overlapping, plus console errors.
+* `node tools/dist.mjs` — builds the CrazyGames upload folder `dist/`.
 * `node tools/trailer.mjs landscape|portrait` — store gameplay videos (needs `ffmpeg`).
 * `node tools/look.mjs 13 21` — high-quality room screenshots at the given in-game hours.
 * `node tools/sim.mjs [runs] ['{"RV":2.0}']` — economy pacing simulator (prints level / fans / money over real minutes).

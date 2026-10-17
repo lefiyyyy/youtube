@@ -1372,3 +1372,14 @@ input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 
 .w-combo.on { opacity: 1; transform: scale(1) rotate(-4deg); }
 .w-combo.bump b { animation: wBump 0.22s ease-out; }
 @keyframes wBump { 45% { transform: scale(1.45); } }
+
+/* in-game phone: the home screen scrolls inside the phone so every app and Close stay reachable */
+.home-scroll { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: none; }
+.home-scroll::-webkit-scrollbar { display: none; }
+/* short landscape screens (phones): a wider phone with 6 apps per row, everything visible without scrolling */
+@media (max-height: 430px) {
+  .phone { width: min(600px, 68vw); }
+  .apps { grid-template-columns: repeat(6, 1fr); gap: 8px 4px; padding: 10px 12px; }
+  .phone-home-w { padding: 10px 14px; }
+  .status { padding-top: 8px; }
+}

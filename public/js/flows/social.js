@@ -73,10 +73,10 @@ export const Social = {
     const s = G.s, sc = this.ctx.screen;
     const dots = { inbox: (s.inbox.list || []).filter((m) => !m.done).length, deals: (s.deals.offers || []).length && hasFeature(s, 'deals') ? s.deals.offers.length : 0 };
     sc.innerHTML = `${this.status()}
-      <div class="phone-home-w"><div class="row" style="justify-content:space-between"><b class="display" style="font-size:15px">${esc(s.profile.name)}</b><span class="chip" style="padding:2px 8px">${ic('heart')}${fmt(totalFans(s))}</span></div>
+      <div class="home-scroll"><div class="phone-home-w"><div class="row" style="justify-content:space-between"><b class="display" style="font-size:15px">${esc(s.profile.name)}</b><span class="chip" style="padding:2px 8px">${ic('heart')}${fmt(totalFans(s))}</span></div>
         <div class="row" style="margin-top:10px;justify-content:space-between;font:800 14px var(--display)">
           <span class="row" style="gap:4px">${ic('vidora')}${fmt(s.fans.vid)}</span><span class="row" style="gap:4px">${ic('pulse')}${fmt(s.fans.pulse)}</span><span class="row" style="gap:4px">${ic('blip')}${fmt(s.fans.blip)}</span>${hasFeature(s, 'lumo') ? `<span class="row" style="gap:4px">${ic('lumo')}${fmt(s.fans.lumo)}</span>` : ''}</div></div>
-      <div class="apps">${APPS.map((a) => { const locked = a.feat && !hasFeature(s, a.feat); const lvl = a.feat ? FEATURES.find((f) => f.id === a.feat).level : 0; return `<button class="app ${locked ? 'locked' : ''}" data-a="app" data-id="${a.id}"><div class="ai" style="background:${a.bg}">${ic(a.icon)}</div>${locked ? `<span class="lock">${ic('lock')}</span>` : ''}${dots[a.id] ? `<span class="dot" style="top:-4px;right:8px">${dots[a.id]}</span>` : ''}<span>${locked ? 'Lv ' + lvl : a.name}</span></button>`; }).join('')}</div>
+      <div class="apps">${APPS.map((a) => { const locked = a.feat && !hasFeature(s, a.feat); const lvl = a.feat ? FEATURES.find((f) => f.id === a.feat).level : 0; return `<button class="app ${locked ? 'locked' : ''}" data-a="app" data-id="${a.id}"><div class="ai" style="background:${a.bg}">${ic(a.icon)}</div>${locked ? `<span class="lock">${ic('lock')}</span>` : ''}${dots[a.id] ? `<span class="dot" style="top:-4px;right:8px">${dots[a.id]}</span>` : ''}<span>${locked ? 'Lv ' + lvl : a.name}</span></button>`; }).join('')}</div></div>
       <div style="margin-top:auto;padding:12px;display:flex;justify-content:center"><button class="btn ghost small" data-a="close">${ic('close')}Close</button></div>`;
     bind(sc, {
       app: (b) => this.app(b.dataset.id),

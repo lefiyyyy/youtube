@@ -24,6 +24,12 @@ import { eventForDay, EVENTS } from './data/events.js';
 const NOSCROLL = new Set(['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'PageUp', 'PageDown']);
 addEventListener('keydown', (e) => { if (NOSCROLL.has(e.code) && !/^(INPUT|TEXTAREA|SELECT)$/.test(e.target?.tagName || '')) e.preventDefault(); });
 addEventListener('contextmenu', (e) => e.preventDefault());
+// Horizontal tab rows: phones swipe them, the mouse wheel scrolls them sideways on desktop.
+addEventListener('wheel', (e) => {
+  const row = e.target.closest?.('.sh-subs, .track, .tabs');
+  if (!row || row.scrollWidth <= row.clientWidth + 2 || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+  row.scrollLeft += e.deltaY; e.preventDefault();
+}, { passive: false });
 
 const bar = (p) => { const b = document.getElementById('loadbar'); if (b) b.style.width = p * 100 + '%'; };
 

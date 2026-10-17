@@ -101,6 +101,7 @@ export class World {
     this.quality = q;
     const dpr = window.devicePixelRatio || 1;
     const pr = q === 'low' ? Math.min(dpr, 1) * (isTouch ? 0.85 : 1) : q === 'medium' ? Math.min(dpr, 1.5) : Math.min(dpr, 2);
+    this.basePR = pr; // resize() caps it by a pixel budget
     this.renderer.setPixelRatio(pr);
     this.renderer.shadowMap.enabled = q !== 'low';
     this.sun.castShadow = q !== 'low';
@@ -115,6 +116,10 @@ export class World {
   resize() {
     const w = this.container.clientWidth || window.innerWidth, h = this.container.clientHeight || window.innerHeight;
     this.W = w; this.H = h;
+    // same smoothness on every screen: big or high-DPI desktop displays get a pixel budget, so a 4K/retina
+    // laptop renders about as many pixels as a 1080p screen instead of 4x as many (phones are already under it)
+    const budget = this.quality === 'high' ? 2.6e6 : this.quality === 'medium' ? 1.7e6 : 1.1e6;
+    this.renderer.setPixelRatio(Math.max(0.75, Math.min(this.basePR || 1, Math.sqrt(budget / (w * h)))));
     this.renderer.setSize(w, h, false);
     this.canvas.style.width = w + 'px'; this.canvas.style.height = h + 'px';
     this.composer.setPixelRatio(this.renderer.getPixelRatio());

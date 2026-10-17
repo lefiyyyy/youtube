@@ -1,10 +1,10 @@
 // Streamer Rise — tiny zero-dependency static server.
-// Usage: node server.js [port]   (default 8080, or $PORT)
+// Usage: node server.js [port] [folder]   (default 8080 or $PORT, serving public/)
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
 
-const ROOT = path.join(__dirname, 'public');
+const ROOT = process.argv[3] ? path.resolve(process.argv[3]) : path.join(__dirname, 'public');
 const PORT = Number(process.argv[2] || process.env.PORT || 8080);
 
 const TYPES = {

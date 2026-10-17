@@ -5,8 +5,11 @@
   "private": true,
   "scripts": {
     "start": "node server.js",
-    "dev": "node server.js 8080"
+    "dev": "node server.js 8080",
+    "dist": "node tools/dist.mjs"
   },
-  "engines": { "node": ">=16" },
+  "engines": {
+    "node": ">=16"
+  },
   "license": "UNLICENSED"
 }

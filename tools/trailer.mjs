@@ -17,7 +17,7 @@ const VW = P ? 864 : 1280, VH = P ? 1296 : 720, DPR = P ? 1.25 : 1.5; // → 108
 const OW = Math.round(VW * DPR), OH = Math.round(VH * DPR);
 const FPS = 30, DT = 1000 / FPS;
 const DRY = !!process.env.DRY;
-const OUT = process.argv[3] || 'promo';
+const OUT = process.argv[3] || 'dist/videos';
 const FR = `${OUT}/frames_${MODE}`;
 const ONLY = process.env.ONLY;
 if (!ONLY && !process.env.CUT) rmSync(FR, { recursive: true, force: true });

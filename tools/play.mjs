@@ -10,7 +10,7 @@ page.on('console', (m) => { if (m.type() === 'error' || m.type() === 'warning') 
 page.on('pageerror', (e) => errors.push('[pageerror] ' + e.message + '\n' + e.stack));
 const tag = mobile ? 'm_' : '';
 let n = 0;
-const shot = async (name) => { await page.screenshot({ path: `${OUT}${tag}${String(++n).padStart(2, '0')}_${name}.png` }); console.log('shot', name); };
+const shot = async (name) => { await page.screenshot({ path: `${OUT}${tag}${String(++n).padStart(2, '0')}_${name}.png`, timeout: 120000 }); console.log('shot', name); };
 const click = async (sel, opts = {}) => { await page.waitForSelector(sel, { timeout: opts.timeout || 15000, state: 'visible' }); await page.click(sel, { force: true }); await page.waitForTimeout(opts.wait ?? 600); };
 const wait = (ms) => page.waitForTimeout(ms);
 const idle = async (modalOk = false) => { await page.waitForFunction((m) => window.__G && !window.__G.game.busy && (m || !document.querySelector('.modal-wrap')), modalOk, { timeout: 90000 }); await wait(400); };
