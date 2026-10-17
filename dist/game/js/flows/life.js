@@ -1,5 +1,5 @@
 // Life sim: kitchen & food, sleep/naps, delivery, pet cat, sofa, moving home, wardrobe.
-import * as THREE from 'three';
+import * as THREE from '../../vendor/three/three.module.min.js';
 import { G } from '../game/ctx.js';
 import { bus } from '../core/bus.js';
 import { $, $$, h, bind, ic, esc, modal, toast, floatText, countUp } from '../ui/ui.js';

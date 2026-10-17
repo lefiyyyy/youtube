@@ -1,10 +1,9 @@
 // Scripted playthrough of the tutorial + core loop. Usage: node tools/play.mjs [w] [h] [mobile]
-import { chromium } from 'playwright';
+import { launch, openPage, BASE } from './env.mjs';
 const [,, w = '1280', h = '720', mobile] = process.argv;
 const OUT = 'tools/shots/';
-const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required'] });
-const ctx = await browser.newContext({ viewport: { width: +w, height: +h }, hasTouch: !!mobile, isMobile: !!mobile, deviceScaleFactor: 1 });
-const page = await ctx.newPage();
+const browser = await launch();
+const page = await openPage(browser, { w: +w, h: +h, mobile });
 const errors = [];
 page.on('console', (m) => { if (m.type() === 'error' || m.type() === 'warning') errors.push(`[${m.type()}] ${m.text()}`); });
 page.on('pageerror', (e) => errors.push('[pageerror] ' + e.message + '\n' + e.stack));
@@ -15,7 +14,7 @@ const click = async (sel, opts = {}) => { await page.waitForSelector(sel, { time
 const wait = (ms) => page.waitForTimeout(ms);
 const idle = async (modalOk = false) => { await page.waitForFunction((m) => window.__G && !window.__G.game.busy && (m || !document.querySelector('.modal-wrap')), modalOk, { timeout: 90000 }); await wait(400); };
 try {
-  await page.goto('http://localhost:8080/?fresh' + (process.env.Q ? '&q=' + process.env.Q : ''), { waitUntil: 'load' });
+  await page.goto(BASE + '/?fresh' + (process.env.Q ? '&q=' + process.env.Q : ''), { waitUntil: 'load' });
   await page.evaluate(() => (window.__autoplay = true));
   await wait(3500);
   await shot('creator');
@@ -104,8 +103,8 @@ try {
   await click('.app[data-id=blip]', { wait: 1000 });
   await click('.post-type[data-k=selfie]', { wait: 4000 });
   await shot('blip_post');
-  await page.keyboard.press('Escape');
-  await page.mouse.click(30, +h / 2); await wait(1200);
+  await page.keyboard.press('Escape'); // closes the phone (a tap beside it would hit the room, e.g. the mirror)
+  await idle();
   await click('#hud [data-a=events]', { wait: 1200 });
   await shot('events');
   await page.click('.modal [data-x]', { force: true }); await wait(600);

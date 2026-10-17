@@ -1,5 +1,5 @@
 // Canvas-drawn animated monitor content: game renderers + OS / stream / editor screens.
-import * as THREE from 'three';
+import * as THREE from '../../vendor/three/three.module.min.js';
 
 const TAU = Math.PI * 2;
 function rr(ctx, x, y, w, h, r) { ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x, y, w, h, r) : ctx.rect(x, y, w, h); }

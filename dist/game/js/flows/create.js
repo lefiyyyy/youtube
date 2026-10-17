@@ -276,6 +276,7 @@ export const Create = {
       let last = performance.now();
       const frame = (now) => {
         if (done) return;
+        if (G.halted()) { last = now; requestAnimationFrame(safe); return; }
         const dt = Math.min(0.6, (now - last) / 1000); last = now;
         clock += dt;
         if (clock >= nextSpawn && clock < dur - 1.2) { spawn(); nextSpawn = clock + 1.05 + Math.random() * 0.8; }
@@ -285,9 +286,10 @@ export const Create = {
         const sec = Math.floor(clock * 60 * content.hours / dur * 2);
         timerEl.textContent = `${String(Math.floor(sec / 60)).padStart(2, '0')}:${String(sec % 60).padStart(2, '0')}`;
         const g = gradeOf(quality()); if (qv.textContent !== g) { qv.textContent = g; qv.parentElement.dataset.g = g; }
-        if (clock >= dur) finish(); else requestAnimationFrame(frame);
+        if (clock >= dur) finish(); else requestAnimationFrame(safe);
       };
-      requestAnimationFrame(frame);
+      const safe = (t) => { try { frame(t); } catch (e) { console.error('[recovered]', e); finish(); } };
+      requestAnimationFrame(safe);
     });
   },
 
@@ -347,9 +349,10 @@ export const Create = {
         $$('.ep-steps span', prog).forEach((x, i) => { x.classList.toggle('done', i < si || k >= 1); x.classList.toggle('on', i === si && k < 1); });
         segs.forEach((sg, i) => { if (!sg.cut && sg.kind !== 'good' && (i + 1) / segs.length < k * 1.15) { sg.cut = true; tl[i].classList.add('cut'); if (Math.random() < 0.5) G.audio.sfx('cut'); } });
         if (Math.random() < 0.02) W.char.play('sitEdit', { restart: true });
-        if (k < 1) requestAnimationFrame(f); else r();
+        if (k < 1) requestAnimationFrame(safe); else r();
       };
-      requestAnimationFrame(f);
+      const safe = (t) => { try { f(t); } catch (e) { console.error('[recovered]', e); r(); } };
+      requestAnimationFrame(safe);
     });
     stopT();
     G.audio.sfx('reward');
@@ -430,9 +433,10 @@ export const Create = {
         const e = k < 0.8 ? k * 0.9 / 0.8 : 0.9 + (k - 0.8) * 0.5;
         bar.style.width = e * 100 + '%'; pct.textContent = Math.round(e * 100) + '%';
         W.screens.data.progress = e;
-        if (k < 1) requestAnimationFrame(f); else r();
+        if (k < 1) requestAnimationFrame(safe); else r();
       };
-      requestAnimationFrame(f);
+      const safe = (t) => { try { f(t); } catch (e) { console.error('[recovered]', e); r(); } };
+      requestAnimationFrame(safe);
     });
     bar.style.width = '100%'; pct.textContent = '100%';
     G.audio.sfx('notify');
@@ -560,9 +564,10 @@ export const Create = {
         W.char.play('sitWin', { restart: true });
       }
       if (sec > 4.5) reveal();
-      requestAnimationFrame(f);
+      requestAnimationFrame(safe);
     };
-    requestAnimationFrame(f);
+    const safe = (t) => { try { f(t); } catch (e) { console.error('[recovered]', e); reveal(); } };
+    requestAnimationFrame(safe);
     await new Promise((r) => bind(el, { ok: () => { if (revealed) r(); } }));
     done = true;
     const dl = step(vid, Date.now());

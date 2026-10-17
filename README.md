@@ -135,7 +135,7 @@ The game is ready for **Basic Launch** and already wired for Full Launch (`publi
 * `loadingStart` / `loadingStop` around boot; `gameplayStart` once the intro ends and `gameplayStop` /
   `gameplayStart` (kept balanced) when the tab is hidden, the settings menu is open and during ads.
 * **Midgame ads** only at natural breaks — after a premiere, after a stream summary, after a night's sleep — never
-  during the tutorial, never in the first 2.5 minutes, at most every 3 minutes (the SDK applies its own limits on
+  during the tutorial, never in the first 4 minutes, at most every 3 minutes (the SDK applies its own limits on
   top). While an ad plays the game is frozen and muted; it resumes on `adFinished` or `adError`.
 * `happytime` on level-ups, milestones and viral videos; the platform **mute** setting is respected live.
 * **Data module**: the save is mirrored (throttled, flushed when the tab is hidden) so logged-in players keep their
@@ -167,6 +167,9 @@ developer portal.
 * `node tools/sdktest.mjs` — CrazyGames SDK integration checks (mock SDK).
 * `node tools/parity.mjs [device...]` — desktop / phone parity: walks the main screens at 1080p, laptop, CrazyGames
   embed, tablet and phone sizes and reports any UI cut off by the screen or overlapping, plus console errors.
+* `MIN=8 node tools/monkey.mjs [seed]` — chaos soak test: plays randomly (modals, overlays, minigames, dock, room,
+  hotkeys) and fails on any page error or a state stuck for 60 s; reports JS heap growth.
+* `node tools/rotate.mjs` — a phone turned upright mid-stream shows the rotate prompt and the stream waits.
 * `node tools/dist.mjs` — builds the CrazyGames upload folder `dist/`.
 * `node tools/trailer.mjs landscape|portrait` — store gameplay videos (needs `ffmpeg`).
 * `node tools/look.mjs 13 21` — high-quality room screenshots at the given in-game hours.
@@ -176,7 +179,13 @@ developer portal.
 * `node tools/build-artifact.mjs public <outDir>` — packages the game as a single page for a Claude Artifact (inline CSS, Three.js from jsDelivr, fonts from Google Fonts, game modules as supporting files).
 
 Tools expect the server on `http://localhost:8080` (`node server.js 8080`) and Playwright's Chromium
-(`npm i playwright` in `tools/` if needed).
+(`npm i playwright` in `tools/` if needed). Shared options (`tools/env.mjs`):
+
+* `BASE=http://localhost:8092` — test another server, e.g. the shipped build (`node server.js 8092 dist/game`).
+* `DEVICE="iPhone 13 landscape"` (or `"iPad (gen 7) landscape"`, `"Pixel 7 landscape"`...) — emulate a device's
+  screen, touch input and mobile user agent.
+* `OLD_APIS=1` — remove browser APIs older Safari / Firefox lack (canvas roundRect, requestIdleCallback,
+  structuredClone, Array.at, OffscreenCanvas, unprefixed AudioContext) so the fallbacks get exercised.
 
 Target pacing from the simulator: first 100 subscribers in ~5 minutes, 1K (Bronze plaque) in ~25 minutes,
 10K in ~70 minutes, 100K in ~3 hours and 1M after roughly 6–7 hours of play.

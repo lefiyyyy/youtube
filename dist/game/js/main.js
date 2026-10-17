@@ -1,4 +1,5 @@
 // STREAMER RISE — bootstrap & main loop.
+import './core/compat.js'; // first: polyfills for older Safari / Firefox
 import { G } from './game/ctx.js';
 import { S, load, save } from './core/state.js';
 import { bus } from './core/bus.js';
@@ -31,6 +32,17 @@ addEventListener('wheel', (e) => {
   row.scrollLeft += e.deltaY; e.preventDefault();
 }, { passive: false });
 
+// Never let one bad frame or a stray promise take the game down: log it and keep playing.
+let errCount = 0;
+const report = (e) => { if (++errCount <= 20) console.error('[recovered]', e?.reason || e?.error || e); };
+addEventListener('error', report);
+addEventListener('unhandledrejection', (e) => { report(e); e.preventDefault(); });
+// A boot problem shows a retry button instead of an endless loading bar.
+const bootFailed = (msg) => {
+  const t = document.querySelector('#intro .tagl');
+  if (t) t.innerHTML = `${msg}<br><button onclick="location.reload()" style="margin-top:14px;padding:10px 22px;border-radius:12px;border:0;background:#ff4f8b;color:#fff;font:800 15px sans-serif;cursor:pointer">Retry</button>`;
+};
+
 const bar = (p) => { const b = document.getElementById('loadbar'); if (b) b.style.width = p * 100 + '%'; };
 
 async function boot() {
@@ -45,9 +57,21 @@ async function boot() {
   try {
     world = new World(document.getElementById('world'));
   } catch (e) {
-    document.querySelector('#intro .tagl').textContent = 'WebGL is required to play. Please enable hardware acceleration.';
+    bootFailed('Your browser could not start 3D graphics (WebGL). Please enable hardware acceleration or try another browser.');
     throw e;
   }
+  // Mobile browsers can drop the 3D context under memory pressure: offer a one-tap resume (progress is saved).
+  world.renderer.domElement.addEventListener('webglcontextlost', (e) => {
+    e.preventDefault();
+    save(true);
+    if (document.getElementById('ctx-lost')) return;
+    const o = document.createElement('div');
+    o.id = 'ctx-lost';
+    o.style.cssText = 'position:fixed;inset:0;z-index:999;display:grid;place-items:center;background:#0d0d1c;color:#fff;font:800 20px sans-serif;text-align:center;cursor:pointer';
+    o.innerHTML = '<div>Tap to continue<div style="font:600 14px sans-serif;opacity:.7;margin-top:8px">Your progress is saved</div></div>';
+    o.addEventListener('click', () => location.reload());
+    document.body.appendChild(o);
+  });
   G.world = world;
   window.__G = G;
   world.state = s;
@@ -64,12 +88,17 @@ async function boot() {
   let adMuted = false;
   const applyAll = () => audio.setVolumes(platformMuted || adMuted ? 0 : s.settings.music, platformMuted || adMuted ? 0 : s.settings.sfx);
   G.applyVol = applyAll;
+  // same query as the CSS rotate prompt: while it covers the game, timed activities wait for the player
+  const upright = matchMedia('(orientation: portrait) and (max-width: 700px)');
+  G.halted = () => SDK.inAd || upright.matches;
+  const onUpright = () => (upright.matches ? SDK.hold('upright') : SDK.release('upright'));
+  upright.addEventListener?.('change', onUpright); onUpright();
   SDK.onMute((m) => { platformMuted = m; applyAll(); });
   // ads: mute and freeze the game while one plays
-  SDK.onAdStart = () => { adMuted = true; applyAll(); audio.ctx?.suspend(); };
-  SDK.onAdEnd = () => { adMuted = false; applyAll(); if (!document.hidden) audio.ctx?.resume(); };
-  addEventListener('pointerdown', unlock, { capture: true });
-  addEventListener('keydown', unlock, { capture: true });
+  SDK.onAdStart = () => { adMuted = true; applyAll(); audio.ctx?.suspend().catch(() => {}); };
+  SDK.onAdEnd = () => { adMuted = false; applyAll(); if (!document.hidden) audio.ctx?.resume().catch(() => {}); };
+  // iOS only lets audio start inside touchend / click handlers, other browsers accept pointerdown / keydown
+  for (const ev of ['pointerdown', 'touchend', 'click', 'keydown']) addEventListener(ev, unlock, { capture: true });
   // systems
   G.game = new Game();
   G.create = Create; G.stream = Stream; G.social = Social; G.life = Life; G.shop = Shop; G.meta = Meta; G.creator = Creator; G.tutorial = Tutorial; G.sdk = SDK; G.out = Out;
@@ -86,6 +115,7 @@ async function boot() {
   world.powerOff();
   bar(0.9);
   SDK.loadingStop();
+  window.__loaded = true;
   // first frame
   world.update(0.016); world.render();
   bar(1);
@@ -93,9 +123,13 @@ async function boot() {
   let last = performance.now(), slow = 0;
   const perf = { frames: 0, time: 0, checks: 0 };
   const loop = (t) => {
-    const dt = Math.min(0.1, (t - last) / 1000); last = t;
-    if (window.__pauseRender) { requestAnimationFrame(loop); return; }
-    const frozen = world.paused || SDK.inAd;
+    requestAnimationFrame(loop); // scheduled first: an exception in one frame can never stop the game
+    const dt = Math.min(0.1, Math.max(0, (t - last) / 1000)); last = t;
+    if (window.__pauseRender) return;
+    try { frame(t, dt); } catch (e) { report(e); }
+  };
+  const frame = (t, dt) => {
+    const frozen = world.paused || G.halted();
     if (!frozen) world.update(dt);
     G.game.update(dt);
     G.ui.hud.update(dt);
@@ -121,7 +155,6 @@ async function boot() {
       }
       if (Tutorial.active && !G.game.busy && !anyModal()) Tutorial.refresh();
     }
-    requestAnimationFrame(loop);
   };
   requestAnimationFrame(loop);
   // intro → gameplay
@@ -152,8 +185,8 @@ async function boot() {
     G.game.queue(() => Meta.dailyAvailable() && Meta.daily(true)); // after the away summary, one modal at a time
   }
   addEventListener('visibilitychange', () => {
-    if (document.hidden) { save(true); SDK.hold('hidden'); audio.ctx?.suspend(); }
-    else { SDK.release('hidden'); if (!SDK.inAd) audio.ctx?.resume(); }
+    if (document.hidden) { save(true); SDK.hold('hidden'); audio.ctx?.suspend().catch(() => {}); }
+    else { SDK.release('hidden'); if (!SDK.inAd) audio.ctx?.resume().catch(() => {}); }
   });
   addEventListener('pagehide', () => save(true));
   addEventListener('keydown', (e) => {
@@ -165,4 +198,7 @@ async function boot() {
   });
   window.__G = G;
 }
-boot().catch((e) => { console.error(e); });
+boot().then(() => { window.__booted = true; }).catch((e) => {
+  console.error(e);
+  if (!document.getElementById('intro')?.classList.contains('out')) bootFailed('Something went wrong while loading.');
+});

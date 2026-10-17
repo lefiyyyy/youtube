@@ -1,5 +1,5 @@
 // Character creation (first launch) and wardrobe (mirror): boy/girl body, look, and outfit slots.
-import * as THREE from 'three';
+import * as THREE from '../../vendor/three/three.module.min.js';
 import { G } from '../game/ctx.js';
 import { $, $$, h, bind, ic, esc, toast } from '../ui/ui.js';
 import { HAIRS, HAIR_NAMES, SKINS, HAIR_COLORS, TOP_COLORS, BOTTOM_COLORS, SHOE_COLORS } from '../world/character.js';

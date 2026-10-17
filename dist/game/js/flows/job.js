@@ -247,10 +247,12 @@ export const Job = {
       if (left <= 0) close();
     };
     const frame = (now) => {
+      if (G.halted()) { last = now; raf = requestAnimationFrame(safe); return; }
       const dt = Math.min(0.6, (now - last) / 1000); last = now;
       if (S.phase === 'play') step(dt);
-      raf = requestAnimationFrame(frame);
+      raf = requestAnimationFrame(safe);
     };
+    const safe = (t) => { try { frame(t); } catch (e) { console.error('[recovered]', e); close(); } };
     const onKey = (e) => {
       if (e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
       const enter = e.key === 'Enter' || e.key === ' ';
@@ -289,7 +291,7 @@ export const Job = {
     bind(el, { start, end: close, collect, clear, serve, add: (b) => add(b.dataset.k) });
     addEventListener('keydown', onKey);
     renderTicket(); hud();
-    raf = requestAnimationFrame(frame);
+    raf = requestAnimationFrame(safe);
     setTimeout(start, window.__autoplay ? 600 : 3000);
     return new Promise((res) => { resolveEnd = res; });
   },

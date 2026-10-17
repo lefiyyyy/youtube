@@ -1,5 +1,5 @@
 // City skyline seen through the windows; redrawn per time-of-day phase.
-import * as THREE from 'three';
+import * as THREE from '../../vendor/three/three.module.min.js';
 import { seeded } from '../core/util.js';
 
 const KEYS = [ // hour, top, bottom, building tint, lit fraction, starAlpha

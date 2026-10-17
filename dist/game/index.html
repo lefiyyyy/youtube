@@ -10,7 +10,57 @@
 <link rel="preload" href="fonts/bricolage-grotesque-latin-800-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="fonts/outfit-latin-700-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="css/style.css">
-<script type="importmap">{ "imports": { "three": "./vendor/three/three.module.min.js" } }</script>
+<link rel="modulepreload" href="vendor/three/three.module.min.js">
+<link rel="modulepreload" href="js/audio/audio.js">
+<link rel="modulepreload" href="js/core/bus.js">
+<link rel="modulepreload" href="js/core/compat.js">
+<link rel="modulepreload" href="js/core/state.js">
+<link rel="modulepreload" href="js/core/util.js">
+<link rel="modulepreload" href="js/data/chat.js">
+<link rel="modulepreload" href="js/data/clothes.js">
+<link rel="modulepreload" href="js/data/comments.js">
+<link rel="modulepreload" href="js/data/content.js">
+<link rel="modulepreload" href="js/data/decor.js">
+<link rel="modulepreload" href="js/data/events.js">
+<link rel="modulepreload" href="js/data/food.js">
+<link rel="modulepreload" href="js/data/games.js">
+<link rel="modulepreload" href="js/data/gear.js">
+<link rel="modulepreload" href="js/data/influencers.js">
+<link rel="modulepreload" href="js/data/progression.js">
+<link rel="modulepreload" href="js/data/quests.js">
+<link rel="modulepreload" href="js/data/rewards.js">
+<link rel="modulepreload" href="js/data/sponsors.js">
+<link rel="modulepreload" href="js/flows/create.js">
+<link rel="modulepreload" href="js/flows/creator.js">
+<link rel="modulepreload" href="js/flows/job.js">
+<link rel="modulepreload" href="js/flows/life.js">
+<link rel="modulepreload" href="js/flows/meta.js">
+<link rel="modulepreload" href="js/flows/out.js">
+<link rel="modulepreload" href="js/flows/shop.js">
+<link rel="modulepreload" href="js/flows/social.js">
+<link rel="modulepreload" href="js/flows/stream.js">
+<link rel="modulepreload" href="js/flows/thumbs.js">
+<link rel="modulepreload" href="js/game/ctx.js">
+<link rel="modulepreload" href="js/game/economy.js">
+<link rel="modulepreload" href="js/game/game.js">
+<link rel="modulepreload" href="js/game/tutorial.js">
+<link rel="modulepreload" href="js/game/videos.js">
+<link rel="modulepreload" href="js/main.js">
+<link rel="modulepreload" href="js/sdk.js">
+<link rel="modulepreload" href="js/ui/icons.js">
+<link rel="modulepreload" href="js/ui/ui.js">
+<link rel="modulepreload" href="js/world/character.js">
+<link rel="modulepreload" href="js/world/furniture.js">
+<link rel="modulepreload" href="js/world/kit.js">
+<link rel="modulepreload" href="js/world/nav.js">
+<link rel="modulepreload" href="js/world/preview.js">
+<link rel="modulepreload" href="js/world/room.js">
+<link rel="modulepreload" href="js/world/screens.js">
+<link rel="modulepreload" href="js/world/sky.js">
+<link rel="modulepreload" href="js/world/textures.js">
+<link rel="modulepreload" href="js/world/venue.js">
+<link rel="modulepreload" href="js/world/vfx.js">
+<link rel="modulepreload" href="js/world/world.js">
 </head>
 <body>
 <div id="app">
@@ -33,5 +83,14 @@
 </div>
 <noscript>Streamer Rise needs JavaScript and WebGL to run.</noscript>
 <script type="module" src="js/main.js"></script>
+<script nomodule>document.querySelector('#intro .tagl').textContent = 'Please update your browser to play Streamer Rise.';</script>
+<script>
+  // A stalled download must never look like an endless loading bar: after 40 s offer a retry.
+  setTimeout(function () {
+    var intro = document.getElementById('intro'), t = intro && intro.querySelector('.tagl');
+    if (!intro || window.__loaded || !t || t.querySelector('button')) return;
+    t.innerHTML = 'Still loading… <br><button onclick="location.reload()" style="margin-top:14px;padding:10px 22px;border-radius:12px;border:0;background:#ff4f8b;color:#fff;font:800 15px sans-serif;cursor:pointer">Retry</button>';
+  }, 40000);
+</script>
 </body>
 </html>

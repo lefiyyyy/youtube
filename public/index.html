@@ -33,5 +33,14 @@
 </div>
 <noscript>Streamer Rise needs JavaScript and WebGL to run.</noscript>
 <script type="module" src="js/main.js"></script>
+<script nomodule>document.querySelector('#intro .tagl').textContent = 'Please update your browser to play Streamer Rise.';</script>
+<script>
+  // A stalled download must never look like an endless loading bar: after 40 s offer a retry.
+  setTimeout(function () {
+    var intro = document.getElementById('intro'), t = intro && intro.querySelector('.tagl');
+    if (!intro || window.__loaded || !t || t.querySelector('button')) return;
+    t.innerHTML = 'Still loading… <br><button onclick="location.reload()" style="margin-top:14px;padding:10px 22px;border-radius:12px;border:0;background:#ff4f8b;color:#fff;font:800 15px sans-serif;cursor:pointer">Retry</button>';
+  }, 40000);
+</script>
 </body>
 </html>

@@ -1,5 +1,5 @@
 // Mesh-building helpers with geometry/material caching.
-import * as THREE from 'three';
+import * as THREE from '../../vendor/three/three.module.min.js';
 import { RoundedBoxGeometry } from '../../vendor/three/addons/geometries/RoundedBoxGeometry.js';
 
 const geoCache = new Map();
@@ -12,7 +12,12 @@ export function disposeObj(root) {
     if (!o.isMesh) return;
     if (o.geometry && !cachedGeos.has(o.geometry)) o.geometry.dispose();
     const ms = Array.isArray(o.material) ? o.material : [o.material];
-    for (const m of ms) if (m && !cachedMats.has(m)) m.dispose();
+    for (const m of ms) {
+      if (!m || cachedMats.has(m)) continue;
+      // its canvas textures too (venue banners, labels...): three re-uploads one that is still used elsewhere
+      for (const k in m) if (m[k] && m[k].isTexture && !m[k].isRenderTargetTexture) m[k].dispose();
+      m.dispose();
+    }
   });
 }
 

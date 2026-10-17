@@ -1,5 +1,5 @@
 // Room / home builder: walls, windows, furniture, gear rig, decor slots, stations and nav.
-import * as THREE from 'three';
+import * as THREE from '../../vendor/three/three.module.min.js';
 import { mat, umat, glow, rbox, box, cyl, sph, plane, circle, at, group, shadows, canvasTex, disposeObj } from './kit.js';
 import { woodFloor, marble, tiles, brick, paint, fabric } from './textures.js';
 import * as F from './furniture.js';

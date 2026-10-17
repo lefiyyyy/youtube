@@ -11,7 +11,7 @@ import { Character } from './character.js';
 import { ScreenManager } from './screens.js';
 import { Skyline, skyParams } from './sky.js';
 import { VFX } from './vfx.js';
-import { mat, torus, circle } from './kit.js';
+import { mat, torus, circle, disposeObj } from './kit.js';
 import { clamp, lerp, damp, isTouch } from '../core/util.js';
 import { bus } from '../core/bus.js';
 
@@ -55,7 +55,10 @@ export class World {
     this.bgCanvas = document.createElement('canvas'); this.bgCanvas.width = 4; this.bgCanvas.height = 256;
     this.bgTex = new THREE.CanvasTexture(this.bgCanvas); this.bgTex.colorSpace = THREE.SRGBColorSpace;
     this.scene.background = this.bgTex;
-    window.addEventListener('resize', () => this.resize());
+    // iOS reports the old size right after a rotation: measure again once the browser has settled
+    const onResize = () => { this.resize(); clearTimeout(this._rzT); this._rzT = setTimeout(() => this.resize(), 350); };
+    window.addEventListener('resize', onResize);
+    window.addEventListener('orientationchange', onResize);
     this.resize();
   }
 
@@ -755,7 +758,7 @@ export class World {
     const prof = profile || this.state.profile;
     const key = JSON.stringify(prof);
     if (!this.portraitChar || this.portraitChar._key !== key) {
-      if (this.portraitChar) this.portraitScene.remove(this.portraitChar.root);
+      if (this.portraitChar) { this.portraitScene.remove(this.portraitChar.root); disposeObj(this.portraitChar.root); }
       this.portraitChar = new Character(prof);
       this.portraitChar._key = key;
       this.portraitScene.add(this.portraitChar.root);

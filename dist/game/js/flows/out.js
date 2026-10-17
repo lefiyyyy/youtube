@@ -1,6 +1,6 @@
 // Going out: rooftop creator party (talk to influencers, make friends, unlock collabs), fan meetups,
 // a part-time café job, the Creator Academy (skills) and the mall (fashion brands).
-import * as THREE from 'three';
+import * as THREE from '../../vendor/three/three.module.min.js';
 import { G } from '../game/ctx.js';
 import { bus } from '../core/bus.js';
 import { $, $$, h, bind, ic, esc, modal, toast, fly } from '../ui/ui.js';

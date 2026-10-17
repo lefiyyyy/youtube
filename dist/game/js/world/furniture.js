@@ -1,5 +1,5 @@
 // Procedural furniture, gear tiers and decor. Every gear tier is visibly distinct.
-import * as THREE from 'three';
+import * as THREE from '../../vendor/three/three.module.min.js';
 import { mat, umat, glow, rbox, box, cyl, sph, sphPart, capsule, torus, cone, plane, circle, lathe, tube, at, scl, group, canvasTex } from './kit.js';
 import { fabric, rugTex, marble } from './textures.js';
 

@@ -1,6 +1,6 @@
 // Places you can go out to: a rooftop creator party and a fan-meetup hall. Same interface the World uses for
 // rooms (root, W/D/H, nav, interact, camCorner/camTarget, update) plus NPC characters you can walk up to.
-import * as THREE from 'three';
+import * as THREE from '../../vendor/three/three.module.min.js';
 import { mat, umat, glow, rbox, box, cyl, sph, plane, circle, at, group, canvasTex, disposeObj, torus } from './kit.js';
 import { woodFloor, tiles } from './textures.js';
 import * as F from './furniture.js';

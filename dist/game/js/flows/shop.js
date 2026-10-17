@@ -1,6 +1,6 @@
 // Shop: every item is shown as a 3D preview before you buy it — setup gear (any unlocked tier), decor,
 // brand fashion (tried on your own character), games, room styles and homes.
-import * as THREE from 'three';
+import * as THREE from '../../vendor/three/three.module.min.js';
 import { G } from '../game/ctx.js';
 import { bus } from '../core/bus.js';
 import { $, $$, h, bind, ic, esc, modal, toast } from '../ui/ui.js';

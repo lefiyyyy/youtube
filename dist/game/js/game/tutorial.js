@@ -1,5 +1,5 @@
 // Fast in-world tutorial: desk -> first video -> reward -> snack -> first upgrade -> first stream.
-import * as THREE from 'three';
+import * as THREE from '../../vendor/three/three.module.min.js';
 import { G } from './ctx.js';
 import { bus } from '../core/bus.js';
 import { $, $$, h, bind, ic, modal, toast, pointAt } from '../ui/ui.js';

@@ -1,5 +1,5 @@
 // Meta systems: level-ups, milestones, daily rewards, quests, events, analytics, deals, team, settings, profile.
-import * as THREE from 'three';
+import * as THREE from '../../vendor/three/three.module.min.js';
 import { G } from '../game/ctx.js';
 import { bus } from '../core/bus.js';
 import { save, wipe } from '../core/state.js';

@@ -1,5 +1,5 @@
 // Stylized creator character: procedural rig, boy/girl bodies, data-driven clothing, expressions and animation clips.
-import * as THREE from 'three';
+import * as THREE from '../../vendor/three/three.module.min.js';
 import { mat, umat, rbox, sph, sphPart, capsule, cyl, torus, cone, lathe, tube, circle, plane, at, scl, group, glow, canvasTex, disposeObj } from './kit.js';
 import { knit } from './textures.js';
 import { clamp, lerp, damp, seeded } from '../core/util.js';

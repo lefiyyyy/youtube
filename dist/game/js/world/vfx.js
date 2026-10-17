@@ -1,5 +1,5 @@
 // Lightweight sprite particle system + 3D confetti for celebrations.
-import * as THREE from 'three';
+import * as THREE from '../../vendor/three/three.module.min.js';
 
 function spriteTex(kind) {
   const c = document.createElement('canvas'); c.width = c.height = 64;

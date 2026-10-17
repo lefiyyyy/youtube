@@ -1,6 +1,6 @@
 // Item preview renderer for the shop: its own small WebGL canvas with studio lighting.
 // Renders cached thumbnails (gear tiers, decor, fashion try-ons) and a live, rotatable detail view.
-import * as THREE from 'three';
+import * as THREE from '../../vendor/three/three.module.min.js';
 import { RoomEnvironment } from '../../vendor/three/addons/environments/RoomEnvironment.js';
 import * as F from './furniture.js';
 import { Character } from './character.js';

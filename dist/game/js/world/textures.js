@@ -1,5 +1,5 @@
 // Procedural textures (wood, marble, tile, brick, fabric, wall paint).
-import * as THREE from 'three';
+import * as THREE from '../../vendor/three/three.module.min.js';
 import { canvasTex } from './kit.js';
 
 const cache = new Map();

@@ -2,7 +2,7 @@
 // Loaded only when the game is served by CrazyGames (or with ?cgsdk / ?crazygames_sandbox=1 for testing).
 const CG_HOST = /crazygames|1001juegos/i;
 const AD_COOLDOWN = 180000;   // our own floor between midgame ads (the SDK also rate-limits)
-const AD_GRACE = 150000;      // no ads in the first minutes of a session
+const AD_GRACE = 240000;      // no ads in a session's first 4 minutes: new players get hooked first
 
 function onCrazyGames() {
   try {

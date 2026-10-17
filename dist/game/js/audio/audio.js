@@ -15,7 +15,8 @@ export class AudioEngine {
     this.started = false;
   }
   unlock() {
-    if (this.ctx) { if (this.ctx.state === 'suspended') this.ctx.resume(); return; }
+    // iOS reports 'interrupted' after a call / app switch: any non-running state resumes on the next tap
+    if (this.ctx) { if (this.ctx.state !== 'running') this.ctx.resume()?.catch?.(() => {}); return; }
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return;
     const c = (this.ctx = new AC());

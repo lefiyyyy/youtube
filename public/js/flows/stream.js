@@ -284,6 +284,7 @@ export const Stream = {
       let last = performance.now();
       const f = (t) => {
         if (done) return;
+        if (G.halted()) { last = t; requestAnimationFrame(safe); return; }
         const dt = Math.min(0.05, (t - last) / 1000); last = t;
         r -= speed * dt;
         x.clearRect(0, 0, 440, 440);
@@ -292,9 +293,10 @@ export const Stream = {
         x.lineWidth = 8; x.strokeStyle = Math.abs(r - target) < 14 ? '#b6ff5c' : '#fff'; x.beginPath(); x.arc(220, 220, Math.max(2, r), 0, 7); x.stroke();
         x.fillStyle = '#fff'; x.font = '800 30px Bricolage, sans-serif'; x.textAlign = 'center'; x.fillText(isTouch ? 'TAP!' : 'CLICK!', 220, 232);
         if (r < target - 40) end(0, 'TOO LATE', '#ff8f99');
-        else requestAnimationFrame(f);
+        else requestAnimationFrame(safe);
       };
-      requestAnimationFrame(f);
+      const safe = (t) => { try { f(t); } catch (e) { console.error('[recovered]', e); end(0, 'TOO LATE', '#ff8f99'); } };
+      requestAnimationFrame(safe);
     });
     this.live = { S2, raid, startTrain, addHype }; // handle for dev tools (store-video capture)
     const doAct = async (id) => {
@@ -368,6 +370,7 @@ export const Stream = {
     const hasCat = s.placed.includes('cat');
     await new Promise((resolve) => {
       const frame = (now) => {
+        if (G.halted()) { last = now; requestAnimationFrame(safe); return; }
         const dt = Math.min(0.6, (now - last) / 1000); last = now;
         S2.t += dt;
         const t = S2.t;
@@ -441,9 +444,11 @@ export const Stream = {
         // occasional character reactions to chat
         if (Math.random() < dt * 0.06 && W.char.clip === 'sitGame') react('laugh');
         if (t >= DUR || S2.ended) { resolve(); return; }
-        requestAnimationFrame(frame);
+        requestAnimationFrame(safe);
       };
-      requestAnimationFrame(frame);
+      // an unexpected error ends the stream normally instead of freezing it
+      const safe = (t) => { try { frame(t); } catch (e) { console.error('[recovered]', e); resolve(); } };
+      requestAnimationFrame(safe);
     });
     removeEventListener('keydown', keyMap);
     S2.ended = true; this.live = null;

@@ -4,4 +4,5 @@ export const G = {
   world: null, ui: null, audio: null, game: null, sdk: null,
   get s() { return S.state; },
   flow: null, // currently active flow name
+  halted: () => false, // true while an ad plays or the phone is held upright: timed minigames wait
 };

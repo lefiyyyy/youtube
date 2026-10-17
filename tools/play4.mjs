@@ -1,8 +1,8 @@
 // Late-game flows: collab video, Lumo, inbox, delivery, team, poll/giveaway, penthouse.
-import { chromium } from 'playwright';
+import { launch, openPage, BASE } from './env.mjs';
 const OUT = 'tools/shots/c_';
-const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
-const page = await browser.newPage({ viewport: { width: 1024, height: 576 } });
+const browser = await launch();
+const page = await openPage(browser, { w: 1024, h: 576 });
 const errors = [];
 page.on('console', (m) => { if (m.type() === 'error' || m.type() === 'warning') errors.push(`[${m.type()}] ${m.text()}`); });
 page.on('pageerror', (e) => errors.push('[pageerror] ' + e.message + '\n' + e.stack));
@@ -13,7 +13,7 @@ const click = async (sel, opts = {}) => { await page.waitForSelector(sel, { time
 const idle = async (modalOk = false) => { await page.waitForFunction((m) => window.__G && !window.__G.game.busy && (m || !document.querySelector('.modal-wrap')), modalOk, { timeout: 120000 }); await wait(400); };
 const closeModals = async () => { for (let i = 0; i < 6; i++) { const ok = await page.$('.modal-wrap [data-a=ok]'); const x = await page.$('.modal-wrap [data-x]'); if (ok) await ok.click({ force: true }); else if (x) await x.click({ force: true }); else break; await wait(800); } };
 try {
-  await page.goto('http://localhost:8080/?fresh&q=low', { waitUntil: 'load' });
+  await page.goto(BASE + '/?fresh&q=low', { waitUntil: 'load' });
   await page.evaluate(() => (window.__autoplay = true));
   await page.waitForSelector('.creator [data-a=done]', { timeout: 60000 }); await wait(800);
   await click('.creator [data-a=done]', { wait: 1500 });

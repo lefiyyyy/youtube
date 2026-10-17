@@ -9,6 +9,7 @@ const DEVICES = {
   'laptop-768': { w: 1366, h: 768 },
   'cg-embed': { w: 1024, h: 576 },        // CrazyGames' in-page game frame on a laptop
   'tablet': { w: 1024, h: 768, touch: true },
+  'tablet-portrait': { w: 768, h: 1024, touch: true }, // portrait tablets get no rotate prompt (only phones do)
   'phone': { w: 844, h: 390, touch: true },
   'phone-small': { w: 667, h: 375, touch: true },
 };
@@ -78,7 +79,7 @@ for (const [name, d] of Object.entries(DEVICES)) {
   };
   const closeAll = async () => { for (let i = 0; i < 5; i++) { const ok = await js(() => { const t = '#modals > .modal-wrap:last-child'; const b = document.querySelector(`${t} [data-a=ok], ${t} [data-x]`); b?.click(); return !!b; }); if (!ok) break; await wait(700); } };
   try {
-    await page.goto('http://localhost:8080/?fresh&q=low', { waitUntil: 'load' });
+    await page.goto((process.env.BASE || 'http://localhost:8080') + '/?fresh&q=low', { waitUntil: 'load' });
     await page.waitForSelector('.creator [data-a=done]', { timeout: 60000 });
     await wait(2000);
     await check('creator');
