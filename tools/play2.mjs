@@ -11,8 +11,10 @@ let n = 0;
 const shot = async (name) => { await page.screenshot({ path: `${OUT}${String(++n).padStart(2, '0')}_${name}.png` }); console.log('shot', name); };
 const wait = (ms) => page.waitForTimeout(ms);
 const click = async (sel, opts = {}) => { await page.waitForSelector(sel, { timeout: opts.timeout || 20000, state: 'visible' }); await page.click(sel, { force: true }); await wait(opts.wait ?? 600); };
-const idle = async (modalOk = false) => { await page.waitForFunction((m) => window.__G && !window.__G.game.busy && (m || !document.querySelector('.modal-wrap')), modalOk, { timeout: 90000 }); await wait(400); };
+const idle = async (modalOk = false) => { await page.waitForFunction((m) => window.__G && !window.__G.game.busy && (m || (!document.querySelector('.modal-wrap') && !window.__G.game.queueList.length && !window.__G.game._qRunning)), modalOk, { timeout: 90000 }); await wait(400); };
 const closeModals = async () => { for (let i = 0; i < 5; i++) { const x = await page.$('.modal-wrap [data-x]'); const ok = await page.$('.modal-wrap [data-a=ok]'); if (ok) await ok.click({ force: true }); else if (x) await x.click({ force: true }); else break; await wait(700); } };
+// let queued celebrations (level ups, milestone unboxings) play out, closing their modals as they come
+const settle = async () => { for (let i = 0; i < 12; i++) { await page.waitForFunction(() => !window.__G.game.busy || document.querySelector('.modal-wrap'), null, { timeout: 90000 }); await closeModals(); if (await page.evaluate(() => { const g = window.__G.game; return !g.busy && !g.queueList.length && !g._qRunning && !document.querySelector('.modal-wrap'); })) return; await wait(800); } };
 try {
   await page.goto(BASE + '/?fresh&q=' + (process.env.Q || 'low'), { waitUntil: 'load' });
   await wait(2500);
@@ -101,8 +103,7 @@ try {
   await closeModals();
   await wait(2000);
   await shot('milestone');
-  await closeModals();
-  await idle();
+  await settle();
   // wardrobe
   await page.evaluate(() => window.__G.life.wardrobe());
   await wait(4000);

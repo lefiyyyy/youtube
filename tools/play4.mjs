@@ -10,7 +10,7 @@ let n = 0;
 const shot = async (name) => { await page.screenshot({ path: `${OUT}${String(++n).padStart(2, '0')}_${name}.png` }); console.log('shot', name); };
 const wait = (ms) => page.waitForTimeout(ms);
 const click = async (sel, opts = {}) => { await page.waitForSelector(sel, { timeout: opts.timeout || 30000, state: 'visible' }); await page.click(sel, { force: true }); await wait(opts.wait ?? 600); };
-const idle = async (modalOk = false) => { await page.waitForFunction((m) => window.__G && !window.__G.game.busy && (m || !document.querySelector('.modal-wrap')), modalOk, { timeout: 120000 }); await wait(400); };
+const idle = async (modalOk = false) => { await page.waitForFunction((m) => window.__G && !window.__G.game.busy && (m || (!document.querySelector('.modal-wrap') && !window.__G.game.queueList.length && !window.__G.game._qRunning)), modalOk, { timeout: 120000 }); await wait(400); };
 const closeModals = async () => { for (let i = 0; i < 6; i++) { const ok = await page.$('.modal-wrap [data-a=ok]'); const x = await page.$('.modal-wrap [data-x]'); if (ok) await ok.click({ force: true }); else if (x) await x.click({ force: true }); else break; await wait(800); } };
 try {
   await page.goto(BASE + '/?fresh&q=low', { waitUntil: 'load' });

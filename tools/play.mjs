@@ -12,7 +12,7 @@ let n = 0;
 const shot = async (name) => { await page.screenshot({ path: `${OUT}${tag}${String(++n).padStart(2, '0')}_${name}.png`, timeout: 120000 }); console.log('shot', name); };
 const click = async (sel, opts = {}) => { await page.waitForSelector(sel, { timeout: opts.timeout || 15000, state: 'visible' }); await page.click(sel, { force: true }); await page.waitForTimeout(opts.wait ?? 600); };
 const wait = (ms) => page.waitForTimeout(ms);
-const idle = async (modalOk = false) => { await page.waitForFunction((m) => window.__G && !window.__G.game.busy && (m || !document.querySelector('.modal-wrap')), modalOk, { timeout: 90000 }); await wait(400); };
+const idle = async (modalOk = false) => { await page.waitForFunction((m) => window.__G && !window.__G.game.busy && (m || (!document.querySelector('.modal-wrap') && !window.__G.game.queueList.length && !window.__G.game._qRunning)), modalOk, { timeout: 90000 }); await wait(400); };
 try {
   await page.goto(BASE + '/?fresh' + (process.env.Q ? '&q=' + process.env.Q : ''), { waitUntil: 'load' });
   await page.evaluate(() => (window.__autoplay = true));
